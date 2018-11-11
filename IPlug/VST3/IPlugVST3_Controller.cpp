@@ -108,47 +108,47 @@ tresult PLUGIN_API IPlugVST3Controller::initialize(FUnknown* context)
       parameters.addParameter(pVSTParam);
     }
 
-//    if (!IsInstrument())
-//      parameters.addParameter (STR16 ("Bypass"), 0, 1, 0, ParameterInfo::kCanAutomate|ParameterInfo::kIsBypass, kBypassParam, kRootUnitId);
-//
-//    if (NPresets() > 1)
-//      parameters.addParameter(STR16("Preset"), STR16(""), NPresets(), 0, ParameterInfo::kIsProgramChange|ParameterInfo::kIsList, kPresetParam, kRootUnitId);
-//
-//    if (DoesMIDIIn())
-//    {
-//      mParamGroups.Add("MIDI Controllers");
-//      uinfo.id = unitID = mParamGroups.GetSize();
-//      uinfo.parentUnitId = kRootUnitId;
-//      uinfo.programListId = kNoProgramListId;
-//      name.fromAscii("MIDI Controllers");
-//      addUnit (new Unit (uinfo));
-//
-//      ParamID midiParamIdx = kMIDICCParamStartIdx;
-//      UnitID midiControllersID = unitID;
-//
-//      char buf[32];
+    if (!IsInstrument())
+      parameters.addParameter (STR16 ("Bypass"), 0, 1, 0, ParameterInfo::kCanAutomate|ParameterInfo::kIsBypass, kBypassParam, kRootUnitId);
 
-//      for (int chan = 0; chan < NUM_CC_CHANS_TO_ADD; chan++)
-//      {
-//        sprintf(buf, "Ch %i", chan+1);
-//
-//        mParamGroups.Add(buf);
-//        uinfo.id = unitID = mParamGroups.GetSize();
-//        uinfo.parentUnitId = midiControllersID;
-//        uinfo.programListId = kNoProgramListId;
-//        name.fromAscii(buf);
-//        addUnit (new Unit (uinfo));
-//
-//        for (int i = 0; i < 128; i++)
-//        {
-//          name.fromAscii(ControlStr(i));
-//          parameters.addParameter(name, STR16(""), 0, 0, 0, midiParamIdx++, unitID);
-//        }
-//
-//        parameters.addParameter (STR16("Channel Aftertouch"), STR16(""), 0, 0, 0, midiParamIdx++, unitID);
-//        parameters.addParameter (STR16("Pitch Bend"), STR16(""), 0, 0.5, 0, midiParamIdx++, unitID);
-//      }
-//    }
+    if (NPresets() > 1)
+      parameters.addParameter(STR16("Preset"), STR16(""), NPresets(), 0, ParameterInfo::kIsProgramChange|ParameterInfo::kIsList, kPresetParam, kRootUnitId);
+
+    if (DoesMIDIIn())
+    {
+      mParamGroups.Add("MIDI Controllers");
+      uinfo.id = unitID = mParamGroups.GetSize();
+      uinfo.parentUnitId = kRootUnitId;
+      uinfo.programListId = kNoProgramListId;
+      name.fromAscii("MIDI Controllers");
+      addUnit (new Unit (uinfo));
+
+      ParamID midiParamIdx = kMIDICCParamStartIdx;
+      UnitID midiControllersID = unitID;
+
+      char buf[32];
+
+      for (int chan = 0; chan < NUM_CC_CHANS_TO_ADD; chan++)
+      {
+        sprintf(buf, "Ch %i", chan+1);
+
+        mParamGroups.Add(buf);
+        uinfo.id = unitID = mParamGroups.GetSize();
+        uinfo.parentUnitId = midiControllersID;
+        uinfo.programListId = kNoProgramListId;
+        name.fromAscii(buf);
+        addUnit (new Unit (uinfo));
+
+        for (int i = 0; i < 128; i++)
+        {
+          name.fromAscii(ControlStr(i));
+          parameters.addParameter(name, STR16(""), 0, 0, 0, midiParamIdx++, unitID);
+        }
+
+        parameters.addParameter (STR16("Channel Aftertouch"), STR16(""), 0, 0, 0, midiParamIdx++, unitID);
+        parameters.addParameter (STR16("Pitch Bend"), STR16(""), 0, 0.5, 0, midiParamIdx++, unitID);
+      }
+    }
 
     if (NPresets())
     {

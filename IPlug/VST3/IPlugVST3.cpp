@@ -20,6 +20,7 @@
 #include "pluginterfaces/base/ibstream.h"
 #include "pluginterfaces/vst/ivstparameterchanges.h"
 #include "pluginterfaces/vst/ivstevents.h"
+#include "pluginterfaces/vst/ivstmidicontrollers.h"
 
 #include "IPlugVST3.h"
 
@@ -158,6 +159,42 @@ tresult PLUGIN_API IPlugVST3::initialize(FUnknown* context)
       bypass->appendString(STR16("off"));
       bypass->appendString(STR16("on"));
       parameters.addParameter(bypass);
+    }
+    
+    if (DoesMIDI())
+    {
+      mParamGroups.Add("MIDI Controllers");
+      uinfo.id = unitID = mParamGroups.GetSize();
+      uinfo.parentUnitId = kRootUnitId;
+      uinfo.programListId = kNoProgramListId;
+      name.fromAscii("MIDI Controllers");
+      addUnit (new Unit (uinfo));
+      
+      ParamID midiParamIdx = kMIDICCParamStartIdx;
+      UnitID midiControllersID = unitID;
+      
+      char buf[32];
+      
+      for (int chan = 0; chan < NUM_CC_CHANS_TO_ADD; chan++)
+      {
+        sprintf(buf, "Ch %i", chan+1);
+        
+        mParamGroups.Add(buf);
+        uinfo.id = unitID = mParamGroups.GetSize();
+        uinfo.parentUnitId = midiControllersID;
+        uinfo.programListId = kNoProgramListId;
+        name.fromAscii(buf);
+        addUnit (new Unit (uinfo));
+        
+        for (int i = 0; i < 128; i++)
+        {
+          name.fromAscii(ControlStr(i));
+          parameters.addParameter(name, STR16(""), 0, 0, 0, midiParamIdx++, unitID);
+        }
+        
+        parameters.addParameter (STR16("Channel Aftertouch"), STR16(""), 0, 0, 0, midiParamIdx++, unitID);
+        parameters.addParameter (STR16("Pitch Bend"), STR16(""), 0, 0.5, 0, midiParamIdx++, unitID);
+      }
     }
 
     for (int i=0; i<NParams(); i++)
@@ -323,7 +360,6 @@ tresult PLUGIN_API IPlugVST3::process(ProcessData& data)
             case kPresetParam:
               //RestorePreset((int)round(FromNormalizedParam(value, 0, NPresets(), 1.))); // TODO
               break;
-              //TODO: pitch bend, modwheel etc
             default:
               {
                 if (idx >= 0 && idx < NParams())
@@ -333,6 +369,23 @@ tresult PLUGIN_API IPlugVST3::process(ProcessData& data)
                   _SendParameterValueFromAPI(idx, (double) value, true);
                   OnParamChange(idx, kHost);
                   LEAVE_PARAMS_MUTEX;
+                }
+                else if (idx >= kMIDICCParamStartIdx)
+                {
+                  int index = idx - kMIDICCParamStartIdx;
+                  int channel = index / kCountCtrlNumber;
+                  int ctrlr = index % kCountCtrlNumber;
+                  
+                  IMidiMsg msg;
+                  
+                  if (ctrlr == kAfterTouch)
+                    msg.MakeChannelATMsg((int) (value * 127.), offsetSamples, channel);
+                  else if (ctrlr == kPitchBend)
+                    msg.MakePitchWheelMsg((value * 2.)-1., channel, offsetSamples);
+                  else
+                    msg.MakeControlChangeMsg((IMidiMsg::EControlChangeMsg) ctrlr, value, channel, offsetSamples);
+                  
+                  ProcessMidiMsg(msg);
                 }
               }
               break;

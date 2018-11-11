@@ -20,6 +20,7 @@
 #include "pluginterfaces/base/ibstream.h"
 #include "pluginterfaces/vst/ivstparameterchanges.h"
 #include "pluginterfaces/vst/ivstevents.h"
+#include "pluginterfaces/vst/ivstmidicontrollers.h"
 
 #ifndef CUSTOM_BUSTYPE_FUNC
 static uint64_t GetAPIBusTypeForChannelIOConfig(int configIdx, ERoute dir, int busIdx, IOConfig* pConfig)
@@ -257,9 +258,8 @@ tresult PLUGIN_API IPlugVST3Processor::process(ProcessData& data)
               break;
             }
             case kPresetParam:
-              //RestorePreset((int)round(FromNormalizedParam(value, 0, NPresets(), 1.))); // TODO
+              //RestorePreset((int)round(FromNormalizedParam(value, 0, NPresets(), 1.))); // TODO: VST3 preset param
               break;
-              //TODO: pitch bend, modwheel etc
             default:
             {
               if (idx >= 0 && idx < NParams())
@@ -268,6 +268,23 @@ tresult PLUGIN_API IPlugVST3Processor::process(ProcessData& data)
                 GetParam(idx)->SetNormalized((double)value);
                 OnParamChange(idx, kHost);
                 LEAVE_PARAMS_MUTEX;
+              }
+              else if (idx >= kMIDICCParamStartIdx)
+              {
+                int index = idx - kMIDICCParamStartIdx;
+                int channel = index / kCountCtrlNumber;
+                int ctrlr = index % kCountCtrlNumber;
+                
+                IMidiMsg msg;
+                
+                if (ctrlr == kAfterTouch)
+                  msg.MakeChannelATMsg((int) (value * 127.), offsetSamples, channel);
+                else if (ctrlr == kPitchBend)
+                  msg.MakePitchWheelMsg((value * 2.)-1., channel, offsetSamples);
+                else
+                  msg.MakeControlChangeMsg((IMidiMsg::EControlChangeMsg) ctrlr, value, channel, offsetSamples);
+                
+                ProcessMidiMsg(msg);
               }
             }
               break;
@@ -301,7 +318,6 @@ tresult PLUGIN_API IPlugVST3Processor::process(ProcessData& data)
               mMidiMsgsFromProcessor.Push(msg);
               break;
             }
-              
             case Event::kNoteOffEvent:
             {
               msg.MakeNoteOffMsg(event.noteOff.pitch, event.sampleOffset, event.noteOff.channel);
