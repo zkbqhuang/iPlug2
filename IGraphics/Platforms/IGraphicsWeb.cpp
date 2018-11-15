@@ -123,6 +123,21 @@ EM_BOOL wheel_callback(int eventType, const EmscriptenWheelEvent* pEvent, void* 
   return true;
 }
 
+EM_BOOL canvas_size_callback(int eventType, const void* pReserved, void* pUserData)
+{
+  int w, h, fs;
+  emscripten_get_canvas_size(&w, &h, &fs);
+  double cssW, cssH;
+  emscripten_get_element_css_size(0, &cssW, &cssH);
+  printf("Canvas resized: WebGL RTT size: %dx%d, canvas CSS size: %02gx%02g\n", w, h, cssW, cssH);
+  
+  IGraphicsWeb* pGraphicsWeb = (IGraphicsWeb*) pUserData;
+  
+  pGraphicsWeb->Resize(w, h, 1.);
+  
+  return 0;
+}
+
 IGraphicsWeb::IGraphicsWeb(IGEditorDelegate& dlg, int w, int h, int fps, float scale)
 : IGRAPHICS_DRAW_CLASS(dlg, w, h, fps, scale)
 {
@@ -340,6 +355,18 @@ void IGraphicsWeb::DrawResize()
   canvas.set("height", Height() * GetScale() * GetDisplayScale());
   
   IGRAPHICS_DRAW_CLASS::DrawResize();
+}
+
+void IGraphicsWeb::FullScreen()
+{
+  EmscriptenFullscreenStrategy s;
+  memset(&s, 0, sizeof(s));
+  s.scaleMode = EMSCRIPTEN_FULLSCREEN_SCALE_STRETCH;
+  s.canvasResolutionScaleMode = EMSCRIPTEN_FULLSCREEN_CANVAS_SCALE_HIDEF;
+  s.filteringMode = EMSCRIPTEN_FULLSCREEN_FILTERING_DEFAULT;
+  s.canvasResizedCallback = canvas_size_callback;
+  s.canvasResizedCallbackUserData = this;
+  EMSCRIPTEN_RESULT ret = emscripten_request_fullscreen_strategy(0, 1, &s);
 }
 
 #if defined IGRAPHICS_CANVAS

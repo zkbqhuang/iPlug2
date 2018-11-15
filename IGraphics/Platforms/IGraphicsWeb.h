@@ -60,6 +60,10 @@ public:
   bool OpenURL(const char* url, const char* msgWindowTitle, const char* confirmMsg, const char* errMsgOnFailure) override;
   
   //IGraphicsWeb
+  
+  /** Request that the canvas element is full screened */
+  void FullScreen();
+  
   static void OnMainLoopTimer();
   double mPrevX = 0.;
   double mPrevY = 0.;
