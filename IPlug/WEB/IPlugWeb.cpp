@@ -17,6 +17,7 @@
 #include "IPlugWeb.h"
 #include <emscripten.h>
 #include <emscripten/bind.h>
+#include <emscripten/fetch.h>
 
 using namespace emscripten;
 
@@ -25,6 +26,28 @@ const int kNumSPVFUIBytes = 18;
 const int kNumSMMFUIBytes = 9;
 const int kNumSSMFUIBytes = 10; // + data size
 const int kNumSAMFUIBytes = 18; // + data size
+
+
+void fetch_store_success(emscripten_fetch_t* pFetch)
+{
+  DBGMSG("IDB store succeeded.\n");
+  emscripten_fetch_close(pFetch);
+}
+
+void fetch_store_failure(emscripten_fetch_t* pFetch)
+{
+  DBGMSG("IDB store failed.\n");
+  emscripten_fetch_close(pFetch);
+}
+
+const char* beforeunload_callback(int eventType, const void *reserved, void *userData)
+{
+  IPlugWeb* _this = (IPlugWeb*) userData;
+  
+  _this->PersistStateToIndexedDB(_this->GetPluginName());
+  
+  return "Do you really want to leave the page?";
+}
 
 IPlugWeb::IPlugWeb(IPlugInstanceInfo instanceInfo, IPlugConfig config)
 : IPlugAPIBase(config, kAPIWEB)
@@ -35,6 +58,40 @@ IPlugWeb::IPlugWeb(IPlugInstanceInfo instanceInfo, IPlugConfig config)
   mSAMFUIBuf.Resize(kNumSAMFUIBytes); memcpy(mSAMFUIBuf.GetBytes(), "SAMFUI", kNumMsgHeaderBytes);
   
   mWAMCtrlrJSObjectName.SetFormatted(32, "%s_WAM", GetPluginName());
+  
+  emscripten_set_beforeunload_callback(this, beforeunload_callback);
+}
+
+void IPlugWeb::PersistStateToIndexedDB(const char* fileName)
+{
+  IByteChunk chunk;
+  SerializeState(chunk);
+
+  emscripten_fetch_attr_t attr;
+  emscripten_fetch_attr_init(&attr);
+  strcpy(attr.requestMethod, "EM_IDB_STORE");
+  attr.attributes = EMSCRIPTEN_FETCH_REPLACE | EMSCRIPTEN_FETCH_PERSIST_FILE;
+  attr.requestData = (const char*) chunk.GetBytes();
+  attr.requestDataSize = chunk.Size();
+  attr.onsuccess = fetch_store_success; // callback
+  attr.onerror = fetch_store_failure; // callback
+  emscripten_fetch(&attr, fileName);
+}
+
+void IPlugWeb::RestoreStateFromIndexedDB(const char* fileName)
+{
+  IByteChunk chunk;
+  SerializeState(chunk); // Serialize state to get chunk size
+  
+  emscripten_fetch_attr_t attr;
+  emscripten_fetch_attr_init(&attr);
+  strcpy(attr.requestMethod, "GET");
+  attr.attributes = EMSCRIPTEN_FETCH_NO_DOWNLOAD | EMSCRIPTEN_FETCH_SYNCHRONOUS | EMSCRIPTEN_FETCH_LOAD_TO_MEMORY;
+  emscripten_fetch_t* pFetch = emscripten_fetch(&attr, fileName);
+  
+  //TODO: error checking!
+  memcmp((char *) chunk.GetBytes(), pFetch->data, chunk.Size());
+  UnserializeState(chunk, 0);
 }
 
 void IPlugWeb::SendParameterValueFromUI(int paramIdx, double value)
@@ -157,6 +214,10 @@ void _SendSysexMsgFromDelegate(int dataSize, uintptr_t pData)
   gPlug->SendSysexMsgFromDelegate(msg);
 }
 
+//void _SerializeState(int dataSize, uintptr_t pData)
+//{
+//}
+
 EMSCRIPTEN_BINDINGS(IPlugWeb) {
   function("SPVFD", &_SendParameterValueFromDelegate);
   function("SAMFD", &_SendArbitraryMsgFromDelegate);
@@ -164,4 +225,6 @@ EMSCRIPTEN_BINDINGS(IPlugWeb) {
   function("SCVFD", &_SendControlValueFromDelegate);
   function("SMMFD", &_SendMidiMsgFromDelegate);
   function("SSMFD", &_SendSysexMsgFromDelegate);
+//  function("SerializeState", &_SerializeState);
+//  function("UnserializeState", &_SerializeState);
 }
