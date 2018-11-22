@@ -699,6 +699,21 @@ bool IGraphicsMac::GetTextFromClipboard(WDL_String& str)
   }
 }
 
+bool IGraphicsMac::RequestFullScreen(bool fullScreen)
+{
+  if (mView)
+  {
+    if(fullScreen)
+      [(IGRAPHICS_VIEW*) mView enterFullScreenMode:[NSScreen mainScreen] withOptions:nil];
+    else
+      [(IGRAPHICS_VIEW*) mView exitFullScreenModeWithOptions:nil];
+    
+    return true;
+  }
+  
+  return false;
+}
+
 //TODO: THIS IS TEMPORARY, TO EASE DEVELOPMENT
 #ifdef IGRAPHICS_AGG
 #include "IGraphicsAGG.cpp"

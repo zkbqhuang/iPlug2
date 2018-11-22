@@ -59,11 +59,9 @@ public:
   bool PromptForColor(IColor& color, const char* str) override { return false; } // TODO:
   bool OpenURL(const char* url, const char* msgWindowTitle, const char* confirmMsg, const char* errMsgOnFailure) override;
   
+  bool RequestFullScreen(bool fullScreen) override;
+  
   //IGraphicsWeb
-  
-  /** Request that the canvas element is full screened */
-  void FullScreen();
-  
   static void OnMainLoopTimer();
   double mPrevX = 0.;
   double mPrevY = 0.;

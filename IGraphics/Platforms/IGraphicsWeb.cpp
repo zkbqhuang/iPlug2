@@ -357,7 +357,7 @@ void IGraphicsWeb::DrawResize()
   IGRAPHICS_DRAW_CLASS::DrawResize();
 }
 
-void IGraphicsWeb::FullScreen()
+void IGraphicsWeb::RequestFullScreen(bool fullScreen)
 {
   EmscriptenFullscreenStrategy s;
   memset(&s, 0, sizeof(s));

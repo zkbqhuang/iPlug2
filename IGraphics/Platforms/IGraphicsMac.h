@@ -54,6 +54,8 @@ public:
 
   bool MeasureText(const IText& text, const char* str, IRECT& bounds) override;
 
+  virtual bool RequestFullScreen(bool fullScreen) override;
+
   //IGraphicsMac
   void SetMousePosition(float x, float y);
 
