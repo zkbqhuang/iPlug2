@@ -1408,8 +1408,11 @@ OSStatus IPlugAU::GetState(CFPropertyListRef* ppPropList)
   PutStrInDict(pDict, kAUPresetNameKey, GetPresetName(GetCurrentPresetIdx()));
 
   IByteChunk chunk;
-  //InitChunkWithIPlugVer(&IPlugChunk); // TODO: IPlugVer should be in chunk!
 
+#ifndef IPLUG1_COMPATIBILITY
+  IByteChunk::InitChunkWithIPlugVer(&IPlugChunk);
+#endif
+  
   if (SerializeState(chunk))
   {
     PutDataInDict(pDict, kAUPresetDataKey, &chunk);
@@ -1461,11 +1464,13 @@ OSStatus IPlugAU::SetState(CFPropertyListRef pPropList)
     return kAudioUnitErr_InvalidPropertyValue;
   }
 
-  // TODO: IPlugVer should be in chunk!
-  //  int pos;
-  //  IByteChunk::GetIPlugVerFromChunk(chunk, pos)
+  int pos = 0;
   
-  if (!UnserializeState(chunk, 0))
+#ifndef IPLUG1_COMPATIBILITY
+  IByteChunk::GetIPlugVerFromChunk(chunk, pos)
+#endif
+  
+  if (!UnserializeState(chunk, pos))
   {
     return kAudioUnitErr_InvalidPropertyValue;
   }

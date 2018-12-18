@@ -417,7 +417,9 @@ AAX_Result IPlugAAX::GetChunkSize(AAX_CTypeID chunkID, uint32_t* pSize) const
   {
     IByteChunk chunk;
     
-    //_this->InitChunkWithIPlugVer(&IPlugChunk);
+#ifndef IPLUG1_COMPATIBILITY
+    IByteChunk::InitChunkWithIPlugVer(&IPlugChunk);
+#endif
     
     if (_this->SerializeState(chunk))
     {
@@ -442,7 +444,9 @@ AAX_Result IPlugAAX::GetChunk(AAX_CTypeID chunkID, AAX_SPlugInChunk* pChunk) con
   {
     IByteChunk chunk;
     
-    //_this->InitChunkWithIPlugVer(&IPlugChunk); // TODO: IPlugVer should be in chunk!
+#ifndef IPLUG1_COMPATIBILITY
+    IByteChunk::InitChunkWithIPlugVer(&IPlugChunk);
+#endif
     
     if (_this->SerializeState(chunk))
     {
@@ -465,7 +469,10 @@ AAX_Result IPlugAAX::SetChunk(AAX_CTypeID chunkID, const AAX_SPlugInChunk* pChun
     IByteChunk chunk;
     chunk.PutBytes(pChunk->fData, pChunk->fSize);
     int pos = 0;
-    //IByteChunk::GetIPlugVerFromChunk(chunk, pos); // TODO: IPlugVer should be in chunk!
+    
+#ifndef IPLUG1_COMPATIBILITY
+    IByteChunk::GetIPlugVerFromChunk(chunk, pos);
+#endif
     pos = UnserializeState(chunk, pos);
     
     for (int i = 0; i< NParams(); i++)
