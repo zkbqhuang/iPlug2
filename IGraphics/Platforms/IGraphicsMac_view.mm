@@ -365,9 +365,9 @@ inline int GetMouseOver(IGraphicsMac* pGraphics)
     if (mGraphics)
       mGraphics->SetDisplayScale([pWindow backingScaleFactor]);
     
-//    [[NSNotificationCenter defaultCenter] addObserver:self
-//                                             selector:@selector(windowResized:) name:NSWindowDidEndLiveResizeNotification
-//                                               object:pWindow];
+    [[NSNotificationCenter defaultCenter] addObserver:self
+                                             selector:@selector(windowResized:) name:NSWindowDidResizeNotification
+                                               object:pWindow];
 //
 //    [[NSNotificationCenter defaultCenter] addObserver:self
 //                                             selector:@selector(windowFullscreened:) name:NSWindowDidEnterFullScreenNotification
@@ -877,25 +877,25 @@ inline int GetMouseOver(IGraphicsMac* pGraphics)
   return YES;
 }
 
-//- (void)windowResized:(NSNotification *)notification;
-//{
-//  if(!mGraphics)
-//    return;
-//
-//  NSSize windowSize = [[self window] frame].size;
-//  NSRect viewFrameInWindowCoords = [self convertRect: [self bounds] toView: nil];
-//
-//  float width = windowSize.width - viewFrameInWindowCoords.origin.x;
-//  float height = windowSize.height - viewFrameInWindowCoords.origin.y;
-//
-//  float scaleX = width / mGraphics->Width();
-//  float scaleY = height / mGraphics->Height();
-//
-//  if(mGraphics->GetUIResizerMode() == EUIResizerMode::kUIResizerScale)
-//    mGraphics->Resize(width, height, mGraphics->GetScale());
-//  else // EUIResizerMode::kUIResizerSize
-//    mGraphics->Resize(mGraphics->Width(), mGraphics->Height(), Clip(std::min(scaleX, scaleY), 0.1f, 10.f));
-//}
+- (void)windowResized:(NSNotification *)notification;
+{
+  if(!mGraphics)
+    return;
+
+  NSSize windowSize = [[self window] frame].size;
+  NSRect viewFrameInWindowCoords = [self convertRect: [self bounds] toView: nil];
+
+  float width = windowSize.width - viewFrameInWindowCoords.origin.x;
+  float height = windowSize.height - viewFrameInWindowCoords.origin.y;
+
+  float scaleX = width / mGraphics->Width();
+  float scaleY = height / mGraphics->Height();
+
+  if(mGraphics->GetResizerMode() == EUIResizerMode::kUIResizerSize)
+    mGraphics->Resize(width, height, mGraphics->GetScale());
+  else // EUIResizerMode::kUIResizerScale
+    mGraphics->Resize(mGraphics->Width(), mGraphics->Height(), Clip(std::min(scaleX, scaleY), 0.1f, 10.f));
+}
 //
 //- (void)windowFullscreened:(NSNotification *)notification;
 //{
