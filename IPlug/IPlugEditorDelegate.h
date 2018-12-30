@@ -19,6 +19,8 @@
 #include "IPlugMidi.h"
 #include "IPlugStructs.h"
 
+namespace iplug {
+
 /** This pure virtual interface delegates communication in both directions between a UI editor and something else (which is usually a plug-in)
  *  It is also the class that owns parameter objects (for historical reasons) - although it's not necessary to allocate them
  *
@@ -242,3 +244,5 @@ protected:
   /** A list of IParam objects. This list is populated in the delegate constructor depending on the number of parameters passed as an argument to IPLUG_CTOR in the plug-in class implementation constructor */
   WDL_PtrList<IParam> mParams;
 };
+
+} // iplug namespace

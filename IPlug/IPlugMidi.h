@@ -16,6 +16,8 @@
 
 #include "IPlugLogger.h"
 
+namespace iplug {
+
 /** Encapsulates a MIDI message and provides helper functions */
 struct IMidiMsg
 {
@@ -573,3 +575,5 @@ protected:
   int mSize, mGrow;
   int mFront, mBack;
 };
+
+} // iplug namespace

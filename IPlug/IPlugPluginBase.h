@@ -17,6 +17,8 @@
 #include "IPlugStructs.h"
 #include "IPlugLogger.h"
 
+namespace iplug {
+
 /** TODO: */
 class IPluginBase : public EDITOR_DELEGATE_CLASS
 {
@@ -374,3 +376,5 @@ protected:
   WDL_Mutex mParams_mutex;
 #endif  
 };
+
+} // iplug namespace

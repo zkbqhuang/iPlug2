@@ -12,6 +12,8 @@
 #define strtok_r strtok_s
 #endif
 
+using namespace iplug;
+
 template<typename T>
 IPlugProcessor<T>::IPlugProcessor(IPlugConfig c, EAPI plugAPI)
   : mLatency(c.latency)

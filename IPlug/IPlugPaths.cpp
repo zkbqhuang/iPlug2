@@ -11,6 +11,8 @@
 #include "IPlugPlatform.h"
 #include "IPlugPaths.h"
 
+using namespace iplug;
+
 #ifdef OS_WIN
 #include <windows.h>
 

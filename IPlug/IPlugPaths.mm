@@ -12,6 +12,8 @@
 #include "IPlugPaths.h"
 #include "IPlugConstants.h"
 
+using namespace iplug;
+
 #ifdef OS_MAC
 
 void HostPath(WDL_String& path, const char* bundleID)

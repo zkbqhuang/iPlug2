@@ -11,6 +11,8 @@
 
 #include "IPlugTimer.h"
 
+using namespace iplug;
+
 WDL_PtrList<Timer_impl> Timer_impl::sTimers;
 
 //static

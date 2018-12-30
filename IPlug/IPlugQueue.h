@@ -15,6 +15,8 @@
 #include <atomic>
 #include <cstddef>
 
+namespace iplug {
+
 template<typename T>
 class IPlugQueue final
 {
@@ -86,3 +88,4 @@ private:
   std::atomic<size_t> mReadIndex{0};
 };
 
+} // iplug namespace

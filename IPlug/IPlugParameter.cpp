@@ -14,6 +14,8 @@
 #include "IPlugParameter.h"
 #include "IPlugLogger.h"
 
+using namespace iplug;
+
 #pragma mark - Shape
 
 // Linear

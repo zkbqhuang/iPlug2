@@ -5,6 +5,8 @@
 #include <sys/time.h>
 #include <unistd.h>
 
+using namespace iplug;
+
 #define WM_TIMER 0x0113
 
 void Sleep(int ms)

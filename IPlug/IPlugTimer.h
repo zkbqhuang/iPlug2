@@ -23,6 +23,8 @@
 
 #include "IPlugPlatform.h"
 
+namespace iplug {
+
 struct Timer;
 
 typedef std::function<void(Timer& t)> ITimerFunction;
@@ -125,4 +127,5 @@ private:
   uint32_t mIntervalMs;
 };
 
+} // iplug namespace
 #endif

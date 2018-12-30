@@ -26,6 +26,8 @@
  * @copydoc IPlugProcessor
 */
 
+namespace iplug {
+
 struct IPlugConfig;
 
 //TODO: can we replace this templated class with typdefs in order to avoid #including .cpp nastiness
@@ -299,5 +301,7 @@ protected: // these members are protected because they need to be access by the 
   /** Contains detailed information about the transport state */
   ITimeInfo mTimeInfo;
 };
+
+} // iplug namespace
 
 #include "IPlugProcessor.cpp"

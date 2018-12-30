@@ -31,6 +31,9 @@
  * @defgroup APIClasses IPlug::APIClasses
 */
 
+namespace iplug
+{
+
 struct IPlugConfig;
 
 /** The base class of an IPlug plug-in, which interacts with the different plug-in APIs. No UI framework code here.
@@ -190,3 +193,5 @@ protected:
   IPlugQueue<SysExData> mSysExDataFromProcessor {SYSEX_TRANSFER_SIZE}; // a queue of SYSEX data to send to the editor
   SysExData mSysexBuf;
 };
+
+} // iplug namespace

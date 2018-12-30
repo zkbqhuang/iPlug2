@@ -18,6 +18,8 @@
 
 #include "IPlugUtilities.h"
 
+namespace iplug {
+
 /** IPlug's parameter class */
 class IParam
 {
@@ -208,3 +210,5 @@ private:
 
   WDL_TypedBuf<DisplayText> mDisplayTexts;
 } WDL_FIXALIGN;
+
+} // iplug namespace

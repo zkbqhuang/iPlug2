@@ -12,6 +12,8 @@
 #include "wdlendian.h"
 #include "wdl_base64.h"
 
+using namespace iplug;
+
 IPluginBase::IPluginBase(int nParams, int nPresets)
 : EDITOR_DELEGATE_CLASS(nParams)
 {  

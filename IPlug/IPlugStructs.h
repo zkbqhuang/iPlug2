@@ -19,6 +19,8 @@
 #include "IPlugMidi.h" // <- Midi related structs in here
 #include "IPlugUtilities.h"
 
+namespace iplug {
+
 /** In certain cases we need to queue parameter changes for transferral between threads */
 struct IParamChange
 {
@@ -429,3 +431,5 @@ struct IPreset
     sprintf(mName, "%s", UNUSED_PRESET_NAME);
   }
 };
+
+} // iplug namespace

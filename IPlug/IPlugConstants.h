@@ -33,6 +33,9 @@ typedef PLUG_SAMPLE_DST sample;
 #define MAX_PROCESS_TRACE_COUNT 100
 #define MAX_IDLE_TRACE_COUNT 15
 
+namespace iplug
+{
+
 enum EIPlugPluginType
 {
   kEffect = 0,
@@ -224,4 +227,5 @@ enum EHost
   // MiniHost
 };
 
+}; // iplug namespace
 

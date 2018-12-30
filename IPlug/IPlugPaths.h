@@ -12,6 +12,8 @@
 #include "string.h"
 #include "wdlstring.h"
 
+namespace iplug {
+
 /** @param path WDL_String reference where the path will be put on success or empty string on failure */
 extern void HostPath(WDL_String& path, const char* bundleID = 0);
 
@@ -39,3 +41,5 @@ extern void SandboxSafeAppSupportPath(WDL_String& path);
  * @param pluginName CString to specify the plug-in name, which will be the sub folder (beneath mfrName) in which the .vstpreset files are located
  * @param isSystem Set \c true if you want to obtain the system-wide path, otherwise the path will be in the user's home folder */
 extern void VST3PresetsPath(WDL_String& path, const char* mfrName, const char* pluginName, bool isSystem = true);
+
+} // iplug namespace

@@ -8,6 +8,8 @@
  ==============================================================================
 */
 
+namespace iplug {
+
 //#if defined PUGL_EDITOR_DELEGATE
 //  #include "PUGLEditorDelegate.h"
 //  typedef PUGLEditorDelegate EDITOR_DELEGATE_CLASS;
@@ -26,3 +28,5 @@
     typedef IGEditorDelegate EDITOR_DELEGATE_CLASS;
   #endif
 #endif
+
+} // iplug namespace

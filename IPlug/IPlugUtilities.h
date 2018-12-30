@@ -41,6 +41,9 @@
 #define DELETE_NULL(p) {delete(p); p=nullptr;}
 #define DELETE_ARRAY(p) {delete[](p); (p)=nullptr;}
 
+
+namespace iplug {
+
 /** Clips the value \p x between \p lo and \p hi
  * @param x Input value
  * @param lo Minimum value to be allowed
@@ -337,3 +340,5 @@ static void MidiNoteName(double midiPitch, WDL_String& noteName, bool cents = fa
     noteName.SetFormatted(32, "%s%i", noteNames[pitchClass], octave);
   }
 }
+
+} // iplug namespace
