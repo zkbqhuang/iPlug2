@@ -51,14 +51,11 @@ public:
    * @return \c true in order to indicate that the states are equal. */
   virtual bool CompareState(const uint8_t* pIncomingState, int startPos);
 
-  /** Implement this to do something after the user interface is resized */
-  virtual void OnWindowResize() {}
-
   /* implement this and return true to trigger your custom about box, when someone clicks about in the menu of a standalone app or VST3 plugin */
-  virtual void OnHostRequestingAboutBox() {} // TODO: implement this for VST 3
+  virtual bool OnHostRequestingAboutBox() { return false; }
 
   /* implement this and return true to trigger your custom help info, when someone clicks help in the menu of a standalone app or VST3 plugin */
-  virtual void OnHostRequestingProductHelp() {} // TODO: implement this for VST 3
+  virtual bool OnHostRequestingProductHelp() { return false; }
   
   /** Implement this to do something specific when IPlug becomes aware of the particular host that is hosting the plug-in.
    * The method may get called multiple times. */
@@ -106,10 +103,10 @@ public:
   /** Helper method, used to print some info to the console in debug builds. Can be overridden in other IPlugAPIBases, for specific functionality, such as printing UI details. */
   virtual void PrintDebugInfo() const;
 
-  /** Call this method from a delegate, for example if you wish to store graphics dimensions in your plug-in state in order to notify the API of a graphics resize.
-   * If calling from a UI interaction use ResizeGraphicsFromUI()
+  /** Call this method from a delegate, for example if you wish to store graphics dimensions in your plug-in state in order to notify the API of a graphics resize or other layout change.
+   * If calling from a UI interaction use EditorPropertiesChangedFromUI()
    * When this is overridden in subclasses the subclass should call this in order to update the member variables */
-  virtual void ResizeGraphics(int width, int height, float scale) { mEditorWidth = width; mEditorHeight = height; mEditorScale = scale; }
+  virtual void EditorPropertiesChangedFromDelegate(int width, int height, const IByteChunk& data) { mEditorWidth = width; mEditorHeight = height; mEditorData = data; }
 
   /** Implemented by the API class, called by the UI (or by a delegate) at the beginning of a parameter change gesture
    * @param paramIdx The parameter that is being changed */
@@ -139,7 +136,7 @@ public:
    * @param paramIdx The index of the parameter that changed
    * @param value The new value
    * @param normalized /true if value is normalised */
-  virtual void _SendParameterValueFromAPI(int paramIdx, double value, bool normalized);
+  virtual void SendParameterValueFromAPI(int paramIdx, double value, bool normalized);
 
   /** Called to set the name of the current host, if known.
   * @param host The name of the plug-in host
@@ -154,7 +151,7 @@ public:
   void SendParameterValueFromUI(int paramIdx, double value) override { SetParameterValue(paramIdx, value); IPluginBase::SendParameterValueFromUI(paramIdx, value); }
   void BeginInformHostOfParamChangeFromUI(int paramIdx) override { BeginInformHostOfParamChange(paramIdx); }
   void EndInformHostOfParamChangeFromUI(int paramIdx) override { EndInformHostOfParamChange(paramIdx); }
-  void ResizeGraphicsFromUI(int viewWidth, int viewHeight, float scale) override { ResizeGraphics(viewWidth, viewHeight, scale); }
+  void EditorPropertiesChangedFromUI(int viewWidth, int viewHeight, const IByteChunk& data) override { EditorPropertiesChangedFromDelegate(viewWidth, viewHeight, data); }
   
   //These are handled in IPlugAPIBase for non DISTRIBUTED APIs
   void SendMidiMsgFromUI(const IMidiMsg& msg) override;
@@ -177,8 +174,8 @@ private:
   virtual void InformHostOfParamChange(int paramIdx, double normalizedValue) {};
   
   //DISTRIBUTED ONLY (Currently only VST3)
-  virtual void _TransmitMidiMsgFromProcessor(const IMidiMsg& msg) {};
-  virtual void _TransmitSysExDataFromProcessor(const SysExData& data) {};
+  virtual void TransmitMidiMsgFromProcessor(const IMidiMsg& msg) {};
+  virtual void TransmitSysExDataFromProcessor(const SysExData& data) {};
 
   void OnTimer(Timer& t);
 

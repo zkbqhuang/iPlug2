@@ -10,18 +10,28 @@
 
 #pragma once
 
+/**
+ * @file
+ * @copydoc TestLayerControl
+ */
+
 #include "IControl.h"
 
+/** Control to test IGraphics layers
+ *   @ingroup TestControls */
 class TestLayerControl : public IKnobControlBase
 {
 public:
   TestLayerControl(IGEditorDelegate& dlg, IRECT rect)
   : IKnobControlBase(dlg, rect, kNoParameter)
   {
+    SetTooltip("TestLayerControl");
   }
 
   void Draw(IGraphics& g) override
   {
+    g.DrawDottedRect(COLOR_BLACK, mRECT);
+
     if (mDrawBackground)
     {
       if (!g.CheckLayer(mLayer))
@@ -34,14 +44,14 @@ public:
         g.DrawText(text, "Cached Layer", mRECT.GetPadded(-10));
         mLayer = g.EndLayer();
       }
-     
+
       g.DrawLayer(mLayer);
     }
-        
+
     g.FillCircle(COLOR_BLUE, mRECT.MW(), mRECT.MH(), mRECT.H() / 4.0);
     g.DrawRadialLine(COLOR_BLACK, mRECT.MW(), mRECT.MH(), -120.0 + mValue * 240.0, 0.0, mRECT.H() / 4.0, nullptr, 3.0);
   }
-  
+
   void OnMouseDown(float x, float y, const IMouseMod& mod) override
   {
     mLayer->Invalidate();

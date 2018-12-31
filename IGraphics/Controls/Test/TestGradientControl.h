@@ -10,14 +10,22 @@
 
 #pragma once
 
+/**
+ * @file
+ * @copydoc TestGradientControl
+ */
+
 #include "IControl.h"
 
+/** Control to test drawing gradients with path based drawing backends
+ *   @ingroup TestControls */
 class TestGradientControl : public IKnobControlBase
 {
 public:
   TestGradientControl(IGEditorDelegate& dlg, IRECT rect, int paramIdx = kNoParameter)
   : IKnobControlBase(dlg, rect, paramIdx)
   {
+    SetTooltip("TestGradientControl");
     RandomiseGradient();
   }
 
@@ -36,7 +44,7 @@ public:
     else
       g.DrawText(mText, "UNSUPPORTED", mRECT);
   }
-  
+
   void OnMouseDown(float x, float y, const IMouseMod& mod) override
   {
     RandomiseGradient();
