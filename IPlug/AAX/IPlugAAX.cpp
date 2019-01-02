@@ -470,9 +470,10 @@ AAX_Result IPlugAAX::SetChunk(AAX_CTypeID chunkID, const AAX_SPlugInChunk* pChun
     chunk.PutBytes(pChunk->fData, pChunk->fSize);
     int pos = 0;
     
-#ifndef IPLUG1_COMPATIBILITY
-    IByteChunk::GetIPlugVerFromChunk(chunk, pos);
-#endif
+    //WDL-OL/IPLUG1 did not serialize the version number for AAX
+    #ifndef IPLUG1_COMPATIBILITY
+    pos = IByteChunk::GetIPlugVerFromChunk(chunk, pos)
+    #endif
     pos = UnserializeState(chunk, pos);
     
     for (int i = 0; i< NParams(); i++)

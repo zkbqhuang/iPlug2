@@ -1414,9 +1414,9 @@ OSStatus IPlugAU::GetState(CFPropertyListRef* ppPropList)
 
   IByteChunk chunk;
 
-#ifndef IPLUG1_COMPATIBILITY
+  #ifndef IPLUG1_COMPATIBILITY
   IByteChunk::InitChunkWithIPlugVer(&IPlugChunk);
-#endif
+  #endif
   
   if (SerializeState(chunk))
   {
@@ -1471,9 +1471,10 @@ OSStatus IPlugAU::SetState(CFPropertyListRef pPropList)
 
   int pos = 0;
   
-#ifndef IPLUG1_COMPATIBILITY
-  IByteChunk::GetIPlugVerFromChunk(chunk, pos)
-#endif
+  //IPLUG1 did not serialize the version number for audiounit v2
+  #ifndef IPLUG1_COMPATIBILITY
+  pos = IByteChunk::GetIPlugVerFromChunk(chunk, pos)
+  #endif
   
   if (!UnserializeState(chunk, pos))
   {

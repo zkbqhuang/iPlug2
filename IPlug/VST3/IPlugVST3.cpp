@@ -642,10 +642,11 @@ tresult PLUGIN_API IPlugVST3::getEditorState(IBStream* state)
 
   IByteChunk chunk;
 
-// TODO: IPlugVer should be in chunk!
-//  int pos;
-//  IByteChunk::GetIPlugVerFromChunk(chunk, pos)
-
+  //WDL-OL/IPLUG1 did not serialize the version number for AAX
+  #ifndef IPLUG1_COMPATIBILITY
+  IByteChunk::InitChunkWithIPlugVer(chunk);
+  #endif
+  
   if (SerializeState(chunk))
   {
     state->write(chunk.GetData(), chunk.Size());
