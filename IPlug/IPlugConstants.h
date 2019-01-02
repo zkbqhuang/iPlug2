@@ -114,7 +114,7 @@ static const int MAX_PARAM_DISPLAY_PRECISION = 6;
 #define SYSEX_TRANSFER_SIZE 4
 
 // All version ints are stored as 0xVVVVRRMM: V = version, R = revision, M = minor revision.
-#define IPLUG_VERSION 0x010000
+#define IPLUG_VERSION 0x020000
 #define IPLUG_VERSION_MAGIC 'pfft'
 
 static const int DEFAULT_BLOCK_SIZE = 1024;
