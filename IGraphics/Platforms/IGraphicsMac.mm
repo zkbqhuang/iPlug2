@@ -176,7 +176,14 @@ EResourceLocation IGraphicsMac::OSFindResource(const char* name, const char* typ
 
 bool IGraphicsMac::MeasureText(const IText& text, const char* str, IRECT& bounds)
 {
+#ifdef IGRAPHICS_LICE
+  @autoreleasepool
+  {
+    return IGRAPHICS_DRAW_CLASS::MeasureText(text, str, bounds);
+  }
+#else
   return IGRAPHICS_DRAW_CLASS::MeasureText(text, str, bounds);
+#endif
 }
 
 void* IGraphicsMac::OpenWindow(void* pParent)
