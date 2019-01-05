@@ -40,25 +40,28 @@ IGraphicsIOS::~IGraphicsIOS()
 
 bool IGraphicsIOS::GetResourcePathFromBundle(const char* fileName, const char* searchExt, WDL_String& fullPath)
 {
-  const char* ext = fileName+strlen(fileName)-1;
-  while (ext >= fileName && *ext != '.') --ext;
-  ++ext;
-  
-  bool isCorrectType = !strcasecmp(ext, searchExt);
-  
-  NSBundle* pBundle = [NSBundle bundleWithIdentifier:ToNSString(GetBundleID())];
-  NSString* pFile = [[[NSString stringWithCString:fileName encoding:NSUTF8StringEncoding] lastPathComponent] stringByDeletingPathExtension];
-  NSString* pExt = [NSString stringWithCString:searchExt encoding:NSUTF8StringEncoding];
-  
-  if (isCorrectType && pBundle && pFile)
+  @autoreleasepool
   {
-    NSString* pParent = [[[pBundle bundlePath] stringByDeletingLastPathComponent] stringByDeletingLastPathComponent];
-    NSString* pPath = [[[[pParent stringByAppendingString:@"/"] stringByAppendingString:pFile] stringByAppendingString: @"."] stringByAppendingString:pExt];
-
-    if (pPath)
+    const char* ext = fileName+strlen(fileName)-1;
+    while (ext >= fileName && *ext != '.') --ext;
+    ++ext;
+    
+    bool isCorrectType = !strcasecmp(ext, searchExt);
+    
+    NSBundle* pBundle = [NSBundle bundleWithIdentifier:ToNSString(GetBundleID())];
+    NSString* pFile = [[[NSString stringWithCString:fileName encoding:NSUTF8StringEncoding] lastPathComponent] stringByDeletingPathExtension];
+    NSString* pExt = [NSString stringWithCString:searchExt encoding:NSUTF8StringEncoding];
+    
+    if (isCorrectType && pBundle && pFile)
     {
-      fullPath.Set([pPath cString]);
-      return true;
+      NSString* pParent = [[[pBundle bundlePath] stringByDeletingLastPathComponent] stringByDeletingLastPathComponent];
+      NSString* pPath = [[[[pParent stringByAppendingString:@"/"] stringByAppendingString:pFile] stringByAppendingString: @"."] stringByAppendingString:pExt];
+      
+      if (pPath)
+      {
+        fullPath.Set([pPath cString]);
+        return true;
+      }
     }
   }
   
@@ -68,29 +71,32 @@ bool IGraphicsIOS::GetResourcePathFromBundle(const char* fileName, const char* s
 
 bool IGraphicsIOS::GetResourcePathFromUsersMusicFolder(const char* fileName, const char* searchExt, WDL_String& fullPath)
 {
-  const char* ext = fileName+strlen(fileName)-1;
-  while (ext >= fileName && *ext != '.') --ext;
-  ++ext;
-  
-  bool isCorrectType = !strcasecmp(ext, searchExt);
-  
-  NSString* pFile = [[[NSString stringWithCString:fileName encoding:NSUTF8StringEncoding] lastPathComponent] stringByDeletingPathExtension];
-  NSString* pExt = [NSString stringWithCString:searchExt encoding:NSUTF8StringEncoding];
-  
-//  if (isCorrectType && pFile)
-//  {
-//    WDL_String musicFolder;
-//    SandboxSafeAppSupportPath(musicFolder);
-//    NSString* pPluginName = [NSString stringWithCString: dynamic_cast<IPluginBase&>(GetDelegate()).GetPluginName() encoding:NSUTF8StringEncoding];
-//    NSString* pMusicLocation = [NSString stringWithCString: musicFolder.Get() encoding:NSUTF8StringEncoding];
-//    NSString* pPath = [[[[pMusicLocation stringByAppendingPathComponent:pPluginName] stringByAppendingPathComponent:@"Resources"] stringByAppendingPathComponent: pFile] stringByAppendingPathExtension:pExt];
-//
-//    if (pPath)
-//    {
-//      fullPath.Set([pPath UTF8String]);
-//      return true;
-//    }
-//  }
+  @autoreleasepool
+  {
+    const char* ext = fileName+strlen(fileName)-1;
+    while (ext >= fileName && *ext != '.') --ext;
+    ++ext;
+    
+    bool isCorrectType = !strcasecmp(ext, searchExt);
+    
+    NSString* pFile = [[[NSString stringWithCString:fileName encoding:NSUTF8StringEncoding] lastPathComponent] stringByDeletingPathExtension];
+    NSString* pExt = [NSString stringWithCString:searchExt encoding:NSUTF8StringEncoding];
+    
+    //  if (isCorrectType && pFile)
+    //  {
+    //    WDL_String musicFolder;
+    //    SandboxSafeAppSupportPath(musicFolder);
+    //    NSString* pPluginName = [NSString stringWithCString: dynamic_cast<IPluginBase&>(GetDelegate()).GetPluginName() encoding:NSUTF8StringEncoding];
+    //    NSString* pMusicLocation = [NSString stringWithCString: musicFolder.Get() encoding:NSUTF8StringEncoding];
+    //    NSString* pPath = [[[[pMusicLocation stringByAppendingPathComponent:pPluginName] stringByAppendingPathComponent:@"Resources"] stringByAppendingPathComponent: pFile] stringByAppendingPathExtension:pExt];
+    //
+    //    if (pPath)
+    //    {
+    //      fullPath.Set([pPath UTF8String]);
+    //      return true;
+    //    }
+    //  }
+  }
   
   fullPath.Set("");
   return false;
