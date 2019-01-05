@@ -613,11 +613,6 @@ void IGraphicsLice::ApplyShadowMask(ILayerPtr& layer, RawBitmapData& mask, const
 void IGraphicsLice::EndFrame()
 {
 #ifdef OS_MAC
-
-#ifdef IGRAPHICS_MAC_BLIT_BENCHMARK
-  double tm=gettm();
-#endif
-    
   CGImageRef img = NULL;
   CGRect r = CGRectMake(0, 0, WindowWidth(), WindowHeight());
 
@@ -656,7 +651,6 @@ void IGraphicsLice::EndFrame()
   img = CGImageCreate(w, h, 8, 32, 4 * sw,(CGColorSpaceRef) mColorSpace, kCGImageAlphaNoneSkipFirst | kCGBitmapByteOrder32Host, provider, NULL, false, kCGRenderingIntentDefault);
   CGDataProviderRelease(provider);
 #endif
-
   if (img)
   {
     CGContextSaveGState((CGContext*) GetPlatformContext());
@@ -666,11 +660,6 @@ void IGraphicsLice::EndFrame()
     CGContextRestoreGState((CGContext*) GetPlatformContext());
     CGImageRelease(img);
   }
-    
-#ifdef IGRAPHICS_MAC_BLIT_BENCHMARK
-    printf("blit %fms\n",(gettm()-tm)*1000.0);
-#endif
-    
 #else // OS_WIN
   PAINTSTRUCT ps;
   HWND hWnd = (HWND) GetWindow();
