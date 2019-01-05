@@ -64,11 +64,14 @@ IGraphicsMac::~IGraphicsMac()
 
 bool IGraphicsMac::IsSandboxed()
 {
-  NSString* pHomeDir = NSHomeDirectory();
-
-  if ([pHomeDir containsString:@"Library/Containers/"])
+  @autoreleasepool
   {
-    return true;
+    NSString* pHomeDir = NSHomeDirectory();
+
+    if ([pHomeDir containsString:@"Library/Containers/"])
+    {
+      return true;
+    }
   }
   return false;
 }
@@ -157,12 +160,15 @@ EResourceLocation IGraphicsMac::OSFindResource(const char* name, const char* typ
       return EResourceLocation::kAbsolutePath;
 
     // finally check name, which might be a full path - if the plug-in is trying to load a resource at runtime (e.g. skin-able UI)
-    NSString* pPath = [NSString stringWithCString:name encoding:NSUTF8StringEncoding];
-
-    if([[NSFileManager defaultManager] fileExistsAtPath : pPath] == YES)
+    @autoreleasepool
     {
-      result.Set([pPath UTF8String]);
-      return EResourceLocation::kAbsolutePath;
+      NSString* pPath = [NSString stringWithCString:name encoding:NSUTF8StringEncoding];
+
+      if([[NSFileManager defaultManager] fileExistsAtPath : pPath] == YES)
+      {
+        result.Set([pPath UTF8String]);
+        return EResourceLocation::kAbsolutePath;
+      }
     }
   }
   return EResourceLocation::kNotFound;
@@ -382,26 +388,28 @@ bool IGraphicsMac::RevealPathInExplorerOrFinder(WDL_String& path, bool select)
 
   if(path.GetLength())
   {
-    NSString* pPath = [NSString stringWithCString:path.Get() encoding:NSUTF8StringEncoding];
-
-    if([[NSFileManager defaultManager] fileExistsAtPath : pPath] == YES)
+    @autoreleasepool
     {
-      if (select)
+      NSString* pPath = [NSString stringWithCString:path.Get() encoding:NSUTF8StringEncoding];
+      
+      if([[NSFileManager defaultManager] fileExistsAtPath : pPath] == YES)
       {
-        NSString* pParentDirectoryPath = [pPath stringByDeletingLastPathComponent];
-
-        if (pParentDirectoryPath)
+        if (select)
         {
-          success = [[NSWorkspace sharedWorkspace] openFile:pParentDirectoryPath];
-
-          if (success)
-            success = [[NSWorkspace sharedWorkspace] selectFile: pPath inFileViewerRootedAtPath:pParentDirectoryPath];
+          NSString* pParentDirectoryPath = [pPath stringByDeletingLastPathComponent];
+          
+          if (pParentDirectoryPath)
+          {
+            success = [[NSWorkspace sharedWorkspace] openFile:pParentDirectoryPath];
+            
+            if (success)
+              success = [[NSWorkspace sharedWorkspace] selectFile: pPath inFileViewerRootedAtPath:pParentDirectoryPath];
+          }
+        }
+        else {
+          success = [[NSWorkspace sharedWorkspace] openFile:pPath];
         }
       }
-      else {
-        success = [[NSWorkspace sharedWorkspace] openFile:pPath];
-      }
-
     }
   }
 
@@ -416,72 +424,75 @@ void IGraphicsMac::PromptForFile(WDL_String& fileName, WDL_String& path, EFileAc
     return;
   }
 
-  NSString* pDefaultFileName;
-  NSString* pDefaultPath;
-  NSArray* pFileTypes = nil;
-
-  if (fileName.GetLength())
-    pDefaultFileName = [NSString stringWithCString:fileName.Get() encoding:NSUTF8StringEncoding];
-  else
-    pDefaultFileName = [NSString stringWithCString:"" encoding:NSUTF8StringEncoding];
-
-  if(!path.GetLength())
-    DesktopPath(path);
-
-  pDefaultPath = [NSString stringWithCString:path.Get() encoding:NSUTF8StringEncoding];
-
-  fileName.Set(""); // reset it
-
-  if (CStringHasContents(ext))
-    pFileTypes = [[NSString stringWithUTF8String:ext] componentsSeparatedByString: @" "];
-
-  if (action == kFileSave)
+  @autoreleasepool
   {
-    NSSavePanel* pSavePanel = [NSSavePanel savePanel];
-
-    //[panelOpen setTitle:title];
-    [pSavePanel setAllowedFileTypes: pFileTypes];
-    [pSavePanel setAllowsOtherFileTypes: NO];
-
-    long result = [pSavePanel runModalForDirectory:pDefaultPath file:pDefaultFileName];
-
-    if (result == NSOKButton)
+    NSString* pDefaultFileName;
+    NSString* pDefaultPath;
+    NSArray* pFileTypes = nil;
+    
+    if (fileName.GetLength())
+      pDefaultFileName = [NSString stringWithCString:fileName.Get() encoding:NSUTF8StringEncoding];
+    else
+      pDefaultFileName = [NSString stringWithCString:"" encoding:NSUTF8StringEncoding];
+    
+    if(!path.GetLength())
+      DesktopPath(path);
+    
+    pDefaultPath = [NSString stringWithCString:path.Get() encoding:NSUTF8StringEncoding];
+    
+    fileName.Set(""); // reset it
+    
+    if (CStringHasContents(ext))
+      pFileTypes = [[NSString stringWithUTF8String:ext] componentsSeparatedByString: @" "];
+    
+    if (action == kFileSave)
     {
-      NSString* pFullPath = [pSavePanel filename] ;
-      fileName.Set([pFullPath UTF8String]);
-
-      NSString* pTruncatedPath = [pFullPath stringByDeletingLastPathComponent];
-
-      if (pTruncatedPath)
+      NSSavePanel* pSavePanel = [NSSavePanel savePanel];
+      
+      //[panelOpen setTitle:title];
+      [pSavePanel setAllowedFileTypes: pFileTypes];
+      [pSavePanel setAllowsOtherFileTypes: NO];
+      
+      long result = [pSavePanel runModalForDirectory:pDefaultPath file:pDefaultFileName];
+      
+      if (result == NSOKButton)
       {
-        path.Set([pTruncatedPath UTF8String]);
-        path.Append("/");
+        NSString* pFullPath = [pSavePanel filename] ;
+        fileName.Set([pFullPath UTF8String]);
+        
+        NSString* pTruncatedPath = [pFullPath stringByDeletingLastPathComponent];
+        
+        if (pTruncatedPath)
+        {
+          path.Set([pTruncatedPath UTF8String]);
+          path.Append("/");
+        }
       }
     }
-  }
-  else
-  {
-    NSOpenPanel* pOpenPanel = [NSOpenPanel openPanel];
-
-    //[pOpenPanel setTitle:title];
-    //[pOpenPanel setAllowsMultipleSelection:(allowmul?YES:NO)];
-    [pOpenPanel setCanChooseFiles:YES];
-    [pOpenPanel setCanChooseDirectories:NO];
-    [pOpenPanel setResolvesAliases:YES];
-
-    long result = [pOpenPanel runModalForDirectory:pDefaultPath file:pDefaultFileName types:pFileTypes];
-
-    if (result == NSOKButton)
+    else
     {
-      NSString* pFullPath = [pOpenPanel filename] ;
-      fileName.Set([pFullPath UTF8String]);
-
-      NSString* pTruncatedPath = [pFullPath stringByDeletingLastPathComponent];
-
-      if (pTruncatedPath)
+      NSOpenPanel* pOpenPanel = [NSOpenPanel openPanel];
+      
+      //[pOpenPanel setTitle:title];
+      //[pOpenPanel setAllowsMultipleSelection:(allowmul?YES:NO)];
+      [pOpenPanel setCanChooseFiles:YES];
+      [pOpenPanel setCanChooseDirectories:NO];
+      [pOpenPanel setResolvesAliases:YES];
+      
+      long result = [pOpenPanel runModalForDirectory:pDefaultPath file:pDefaultFileName types:pFileTypes];
+      
+      if (result == NSOKButton)
       {
-        path.Set([pTruncatedPath UTF8String]);
-        path.Append("/");
+        NSString* pFullPath = [pOpenPanel filename] ;
+        fileName.Set([pFullPath UTF8String]);
+        
+        NSString* pTruncatedPath = [pFullPath stringByDeletingLastPathComponent];
+        
+        if (pTruncatedPath)
+        {
+          path.Set([pTruncatedPath UTF8String]);
+          path.Append("/");
+        }
       }
     }
   }
@@ -489,37 +500,40 @@ void IGraphicsMac::PromptForFile(WDL_String& fileName, WDL_String& path, EFileAc
 
 void IGraphicsMac::PromptForDirectory(WDL_String& dir)
 {
-  NSString* defaultPath;
-
-  if (dir.GetLength())
+  @autoreleasepool
   {
-    defaultPath = [NSString stringWithCString:dir.Get() encoding:NSUTF8StringEncoding];
-  }
-  else
-  {
-    defaultPath = [NSString stringWithCString:DEFAULT_PATH encoding:NSUTF8StringEncoding];
-    dir.Set(DEFAULT_PATH);
-  }
+    NSString* defaultPath;
 
-  NSOpenPanel* panelOpen = [NSOpenPanel openPanel];
+    if (dir.GetLength())
+    {
+      defaultPath = [NSString stringWithCString:dir.Get() encoding:NSUTF8StringEncoding];
+    }
+    else
+    {
+      defaultPath = [NSString stringWithCString:DEFAULT_PATH encoding:NSUTF8StringEncoding];
+      dir.Set(DEFAULT_PATH);
+    }
 
-  [panelOpen setTitle:@"Choose a Directory"];
-  [panelOpen setCanChooseFiles:NO];
-  [panelOpen setCanChooseDirectories:YES];
-  [panelOpen setResolvesAliases:YES];
-  [panelOpen setCanCreateDirectories:YES];
+    NSOpenPanel* panelOpen = [NSOpenPanel openPanel];
 
-  [panelOpen setDirectoryURL: [NSURL fileURLWithPath: defaultPath]];
+    [panelOpen setTitle:@"Choose a Directory"];
+    [panelOpen setCanChooseFiles:NO];
+    [panelOpen setCanChooseDirectories:YES];
+    [panelOpen setResolvesAliases:YES];
+    [panelOpen setCanCreateDirectories:YES];
 
-  if ([panelOpen runModal] == NSOKButton)
-  {
-    NSString* fullPath = [ panelOpen filename ] ;
-    dir.Set( [fullPath UTF8String] );
-    dir.Append("/");
-  }
-  else
-  {
-    dir.Set("");
+    [panelOpen setDirectoryURL: [NSURL fileURLWithPath: defaultPath]];
+
+    if ([panelOpen runModal] == NSOKButton)
+    {
+      NSString* fullPath = [ panelOpen filename ] ;
+      dir.Set( [fullPath UTF8String] );
+      dir.Append("/");
+    }
+    else
+    {
+      dir.Set("");
+    }
   }
 }
 
@@ -578,19 +592,22 @@ void IGraphicsMac::SetMouseCursor(ECursor cursor)
 bool IGraphicsMac::OpenURL(const char* url, const char* msgWindowTitle, const char* confirmMsg, const char* errMsgOnFailure)
 {
   #pragma REMINDER("Warning and error messages for OpenURL not implemented")
-  NSURL* pNSURL = nullptr;
-  if (strstr(url, "http"))
+  @autoreleasepool
   {
-    pNSURL = [NSURL URLWithString:ToNSString(url)];
-  }
-  else
-  {
-    pNSURL = [NSURL fileURLWithPath:ToNSString(url)];
-  }
-  if (pNSURL)
-  {
-    bool ok = ([[NSWorkspace sharedWorkspace] openURL:pNSURL]);
-    return ok;
+    NSURL* pNSURL = nullptr;
+    if (strstr(url, "http"))
+    {
+      pNSURL = [NSURL URLWithString:ToNSString(url)];
+    }
+    else
+    {
+      pNSURL = [NSURL fileURLWithPath:ToNSString(url)];
+    }
+    if (pNSURL)
+    {
+      bool ok = ([[NSWorkspace sharedWorkspace] openURL:pNSURL]);
+      return ok;
+    }
   }
   return true;
 }
@@ -609,17 +626,20 @@ int IGraphicsMac::GetUserOSVersion()   // Returns a number like 0x1050 (10.5).
 
 bool IGraphicsMac::GetTextFromClipboard(WDL_String& str)
 {
-  NSString* pTextOnClipboard = [[NSPasteboard generalPasteboard] stringForType: NSStringPboardType];
+  @autoreleasepool
+  {
+    NSString* pTextOnClipboard = [[NSPasteboard generalPasteboard] stringForType: NSStringPboardType];
 
-  if (pTextOnClipboard == nil)
-  {
-    str.Set("");
-    return false;
-  }
-  else
-  {
-    str.Set([pTextOnClipboard UTF8String]);
-    return true;
+    if (pTextOnClipboard == nil)
+    {
+      str.Set("");
+      return false;
+    }
+    else
+    {
+      str.Set([pTextOnClipboard UTF8String]);
+      return true;
+    }
   }
 }
 
