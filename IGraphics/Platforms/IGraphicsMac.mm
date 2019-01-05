@@ -75,25 +75,28 @@ bool IGraphicsMac::IsSandboxed()
 
 bool IGraphicsMac::GetResourcePathFromBundle(const char* fileName, const char* searchExt, WDL_String& fullPath)
 {
-  const char* ext = fileName+strlen(fileName)-1;
-  while (ext >= fileName && *ext != '.') --ext;
-  ++ext;
-
-  bool isCorrectType = !strcasecmp(ext, searchExt);
-
-  NSBundle* pBundle = [NSBundle bundleWithIdentifier:ToNSString(GetBundleID())];
-  NSString* pFile = [[[NSString stringWithCString:fileName encoding:NSUTF8StringEncoding] lastPathComponent] stringByDeletingPathExtension];
-
-  if (isCorrectType && pBundle && pFile)
+  @autoreleasepool
   {
-    NSString* pPath = [pBundle pathForResource:pFile ofType:ToNSString(searchExt)];
+    const char* ext = fileName+strlen(fileName)-1;
+    while (ext >= fileName && *ext != '.') --ext;
+    ++ext;
 
-    if (pPath)
+    bool isCorrectType = !strcasecmp(ext, searchExt);
+
+    NSBundle* pBundle = [NSBundle bundleWithIdentifier:ToNSString(GetBundleID())];
+    NSString* pFile = [[[NSString stringWithCString:fileName encoding:NSUTF8StringEncoding] lastPathComponent] stringByDeletingPathExtension];
+
+    if (isCorrectType && pBundle && pFile)
     {
-      if([[NSFileManager defaultManager] fileExistsAtPath : pPath] == YES)
+      NSString* pPath = [pBundle pathForResource:pFile ofType:ToNSString(searchExt)];
+
+      if (pPath)
       {
-        fullPath.Set([pPath cString]);
-        return true;
+        if([[NSFileManager defaultManager] fileExistsAtPath : pPath] == YES)
+        {
+          fullPath.Set([pPath cString]);
+          return true;
+        }
       }
     }
   }
@@ -104,32 +107,35 @@ bool IGraphicsMac::GetResourcePathFromBundle(const char* fileName, const char* s
 
 bool IGraphicsMac::GetResourcePathFromUsersMusicFolder(const char* fileName, const char* searchExt, WDL_String& fullPath)
 {
-  const char* ext = fileName+strlen(fileName)-1;
-  while (ext >= fileName && *ext != '.') --ext;
-  ++ext;
-
-  bool isCorrectType = !strcasecmp(ext, searchExt);
-
-  NSString* pFile = [[[NSString stringWithCString:fileName encoding:NSUTF8StringEncoding] lastPathComponent] stringByDeletingPathExtension];
-  NSString* pExt = [NSString stringWithCString:searchExt encoding:NSUTF8StringEncoding];
-
-  if (isCorrectType && pFile)
+  @autoreleasepool
   {
-    WDL_String musicFolder;
-    SandboxSafeAppSupportPath(musicFolder);
-    IPluginBase* pPlugin = dynamic_cast<IPluginBase*>(GetDelegate());
-    
-    if(pPlugin != nullptr)
-    {
-  
-      NSString* pPluginName = [NSString stringWithCString: pPlugin->GetPluginName() encoding:NSUTF8StringEncoding];
-      NSString* pMusicLocation = [NSString stringWithCString: musicFolder.Get() encoding:NSUTF8StringEncoding];
-      NSString* pPath = [[[[pMusicLocation stringByAppendingPathComponent:pPluginName] stringByAppendingPathComponent:@"Resources"] stringByAppendingPathComponent: pFile] stringByAppendingPathExtension:pExt];
+    const char* ext = fileName+strlen(fileName)-1;
+    while (ext >= fileName && *ext != '.') --ext;
+    ++ext;
 
-      if([[NSFileManager defaultManager] fileExistsAtPath : pPath] == YES)
+    bool isCorrectType = !strcasecmp(ext, searchExt);
+
+    NSString* pFile = [[[NSString stringWithCString:fileName encoding:NSUTF8StringEncoding] lastPathComponent] stringByDeletingPathExtension];
+    NSString* pExt = [NSString stringWithCString:searchExt encoding:NSUTF8StringEncoding];
+
+    if (isCorrectType && pFile)
+    {
+      WDL_String musicFolder;
+      SandboxSafeAppSupportPath(musicFolder);
+      IPluginBase* pPlugin = dynamic_cast<IPluginBase*>(GetDelegate());
+      
+      if(pPlugin != nullptr)
       {
-        fullPath.Set([pPath cString]);
-        return true;
+    
+        NSString* pPluginName = [NSString stringWithCString: pPlugin->GetPluginName() encoding:NSUTF8StringEncoding];
+        NSString* pMusicLocation = [NSString stringWithCString: musicFolder.Get() encoding:NSUTF8StringEncoding];
+        NSString* pPath = [[[[pMusicLocation stringByAppendingPathComponent:pPluginName] stringByAppendingPathComponent:@"Resources"] stringByAppendingPathComponent: pFile] stringByAppendingPathExtension:pExt];
+
+        if([[NSFileManager defaultManager] fileExistsAtPath : pPath] == YES)
+        {
+          fullPath.Set([pPath cString]);
+          return true;
+        }
       }
     }
   }
