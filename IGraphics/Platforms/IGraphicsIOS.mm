@@ -26,21 +26,6 @@ NSString* ToNSString(const char* cStr)
 
 #pragma clang diagnostic ignored "-Wdeprecated-declarations"
 
-//struct CocoaAutoReleasePool
-//{
-//  NSAutoreleasePool* mPool;
-//
-//  CocoaAutoReleasePool()
-//  {
-//    mPool = [[NSAutoreleasePool alloc] init];
-//  }
-//
-//  ~CocoaAutoReleasePool()
-//  {
-//    [mPool release];
-//  }
-//};
-
 #pragma mark -
 
 IGraphicsIOS::IGraphicsIOS(IGEditorDelegate& dlg, int w, int h, int fps, float scale)
@@ -55,8 +40,6 @@ IGraphicsIOS::~IGraphicsIOS()
 
 bool IGraphicsIOS::GetResourcePathFromBundle(const char* fileName, const char* searchExt, WDL_String& fullPath)
 {
-//  CocoaAutoReleasePool pool;
-  
   const char* ext = fileName+strlen(fileName)-1;
   while (ext >= fileName && *ext != '.') --ext;
   ++ext;
@@ -85,8 +68,6 @@ bool IGraphicsIOS::GetResourcePathFromBundle(const char* fileName, const char* s
 
 bool IGraphicsIOS::GetResourcePathFromUsersMusicFolder(const char* fileName, const char* searchExt, WDL_String& fullPath)
 {
-  //  CocoaAutoReleasePool pool; TODO:
-  
   const char* ext = fileName+strlen(fileName)-1;
   while (ext >= fileName && *ext != '.') --ext;
   ++ext;

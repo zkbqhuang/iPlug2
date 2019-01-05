@@ -50,7 +50,7 @@
   {
     IPopupMenu::Item* pMenuItem = pMenu->GetItem(i);
 
-    nsMenuItemTitle = [[[NSMutableString alloc] initWithCString:pMenuItem->GetText() encoding:NSUTF8StringEncoding] autorelease];
+    nsMenuItemTitle = [[NSMutableString alloc] initWithCString:pMenuItem->GetText() encoding:NSUTF8StringEncoding];
 
     if (pMenu->GetPrefix())
     {
@@ -106,8 +106,9 @@
       {
         [nsMenuItem setEnabled:NO];
       }
-
     }
+      
+    [nsMenuItemTitle release];
   }
 
   mIPopupMenu = pMenu;
@@ -288,7 +289,7 @@ inline int GetMouseOver(IGraphicsMac* pGraphics)
 #if defined IGRAPHICS_NANOVG
   #if defined IGRAPHICS_METAL
     if (!self.wantsLayer) {
-      self.layer = [CAMetalLayer new];
+      self.layer = [CAMetalLayer new];  // TODO - needs release???
       self.layer.opaque = YES;
       self.wantsLayer = YES;
     }
@@ -547,7 +548,7 @@ inline int GetMouseOver(IGraphicsMac* pGraphics)
 
 - (void) scrollWheel: (NSEvent*) pEvent
 {
-  if (mTextFieldView) [self endUserInput ];
+  if (mTextFieldView) [self endUserInput];
   IMouseInfo info = [self getMouseLeft:pEvent];
   float d = [pEvent deltaY];
   if (mGraphics)
@@ -641,7 +642,7 @@ inline int GetMouseOver(IGraphicsMac* pGraphics)
 - (void) removeFromSuperview
 {
   if (mTextFieldView)
-    [self endUserInput ];
+    [self endUserInput];
   
 //  if (mWebView) {
 //    [mWebView removeFromSuperview ];
@@ -676,16 +677,19 @@ inline int GetMouseOver(IGraphicsMac* pGraphics)
 
 - (IPopupMenu*) createPopupMenu: (const IPopupMenu&) menu : (NSRect) bounds;
 {
-  IGRAPHICS_MENU_RCVR* pDummyView = [[[IGRAPHICS_MENU_RCVR alloc] initWithFrame:bounds] autorelease];
-  NSMenu* pNSMenu = [[[IGRAPHICS_MENU alloc] initWithIPopupMenuAndReciever:&const_cast<IPopupMenu&>(menu) :pDummyView] autorelease];
+  IGRAPHICS_MENU_RCVR* pDummyView = [[IGRAPHICS_MENU_RCVR alloc] initWithFrame:bounds];
+  NSMenu* pNSMenu = [[IGRAPHICS_MENU alloc] initWithIPopupMenuAndReciever:&const_cast<IPopupMenu&>(menu) :pDummyView];
   NSPoint wp = {bounds.origin.x, bounds.origin.y - 4};
 
   [pNSMenu popUpMenuPositioningItem:nil atLocation:wp inView:self];
-  
+    
   NSMenuItem* pChosenItem = [pDummyView menuItem];
   NSMenu* pChosenMenu = [pChosenItem menu];
   IPopupMenu* pIPopupMenu = [(IGRAPHICS_MENU*) pChosenMenu iPopupMenu];
 
+  [pDummyView release];
+  [pNSMenu release];
+    
   long chosenItemIdx = [pChosenMenu indexOfItem: pChosenItem];
 
   if (chosenItemIdx > -1 && pIPopupMenu)
@@ -707,6 +711,7 @@ inline int GetMouseOver(IGraphicsMac* pGraphics)
   {
     IGRAPHICS_TEXTFIELDCELL* pCell = [[IGRAPHICS_TEXTFIELDCELL alloc] initTextCell:@"textfield"];
     [mTextFieldView setCell: pCell];
+    [pCell release];
     [mTextFieldView setEditable: TRUE];
     [mTextFieldView setDrawsBackground: TRUE];
   }
@@ -760,10 +765,12 @@ inline int GetMouseOver(IGraphicsMac* pGraphics)
         break;
     }
 
-    [mTextFieldView setFormatter:[[[IGRAPHICS_FORMATTER alloc] init] autorelease]];
+    IGRAPHICS_FORMATTER* formatter = [[IGRAPHICS_FORMATTER alloc] init];
+    [mTextFieldView setFormatter:formatter];
     [[mTextFieldView formatter] setAcceptableCharacterSet:characterSet];
     [[mTextFieldView formatter] setMaximumLength:control.GetTextEntryLength()];
     [characterSet release];
+    [formatter release];
   }
 
   [[mTextFieldView cell] setLineBreakMode: NSLineBreakByTruncatingTail];
@@ -792,7 +799,8 @@ inline int GetMouseOver(IGraphicsMac* pGraphics)
 {
   [mTextFieldView setDelegate: nil];
   [mTextFieldView removeFromSuperview];
-
+  [mTextFieldView release];
+    
   NSWindow* pWindow = [self window];
   [pWindow makeFirstResponder: self];
 

@@ -49,34 +49,6 @@ int GetSystemVersion()
   return v;
 }
 
-struct CocoaAutoReleasePool
-{
-  NSAutoreleasePool* mPool;
-
-  CocoaAutoReleasePool()
-  {
-    mPool = [[NSAutoreleasePool alloc] init];
-  }
-
-  ~CocoaAutoReleasePool()
-  {
-    [mPool release];
-  }
-};
-
-//#define IGRAPHICS_MAC_BLIT_BENCHMARK
-//#define IGRAPHICS_MAC_OLD_IMAGE_DRAWING
-
-#ifdef IGRAPHICS_MAC_BLIT_BENCHMARK
-#include <sys/time.h>
-static double gettm()
-{
-  struct timeval tm={0,};
-  gettimeofday(&tm,NULL);
-  return (double)tm.tv_sec + (double)tm.tv_usec/1000000;
-}
-#endif
-
 #pragma mark -
 
 IGraphicsMac::IGraphicsMac(IGEditorDelegate& dlg, int w, int h, int fps, float scale)
@@ -103,8 +75,6 @@ bool IGraphicsMac::IsSandboxed()
 
 bool IGraphicsMac::GetResourcePathFromBundle(const char* fileName, const char* searchExt, WDL_String& fullPath)
 {
-  CocoaAutoReleasePool pool;
-
   const char* ext = fileName+strlen(fileName)-1;
   while (ext >= fileName && *ext != '.') --ext;
   ++ext;
@@ -134,8 +104,6 @@ bool IGraphicsMac::GetResourcePathFromBundle(const char* fileName, const char* s
 
 bool IGraphicsMac::GetResourcePathFromUsersMusicFolder(const char* fileName, const char* searchExt, WDL_String& fullPath)
 {
-  CocoaAutoReleasePool pool;
-
   const char* ext = fileName+strlen(fileName)-1;
   while (ext >= fileName && *ext != '.') --ext;
   ++ext;
@@ -196,9 +164,6 @@ EResourceLocation IGraphicsMac::OSFindResource(const char* name, const char* typ
 
 bool IGraphicsMac::MeasureText(const IText& text, const char* str, IRECT& bounds)
 {
-#ifdef IGRAPHICS_LICE
-  CocoaAutoReleasePool pool;
-#endif
   return IGRAPHICS_DRAW_CLASS::MeasureText(text, str, bounds);
 }
 
@@ -378,8 +343,6 @@ void IGraphicsMac::UpdateTooltips()
 {
   if (!(mView && TooltipsEnabled())) return;
 
-  CocoaAutoReleasePool pool;
-
   [(IGRAPHICS_VIEW*) mView removeAllToolTips];
 
   if (GetPopupMenuControl() && GetPopupMenuControl()->GetState() > IPopupMenuControl::kCollapsed)
@@ -409,8 +372,6 @@ const char* IGraphicsMac::GetPlatformAPIStr()
 
 bool IGraphicsMac::RevealPathInExplorerOrFinder(WDL_String& path, bool select)
 {
-  CocoaAutoReleasePool pool;
-
   BOOL success = FALSE;
 
   if(path.GetLength())
@@ -623,7 +584,6 @@ bool IGraphicsMac::OpenURL(const char* url, const char* msgWindowTitle, const ch
   if (pNSURL)
   {
     bool ok = ([[NSWorkspace sharedWorkspace] openURL:pNSURL]);
-    // [pURL release];
     return ok;
   }
   return true;
