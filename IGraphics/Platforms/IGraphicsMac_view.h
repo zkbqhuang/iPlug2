@@ -11,7 +11,6 @@
 #ifndef NO_IGRAPHICS
 
 #import <Cocoa/Cocoa.h>
-//#import <WebKit/WebKit.h>
 
 #include "IGraphicsMac.h"
 
@@ -87,7 +86,6 @@ NSString* ToNSString(const char* cStr);
 {
   NSTimer* mTimer;
   NSTextField* mTextFieldView;
-//  WKWebView* mWebView;
   IControl* mEdControl; // the control linked to the open text edit
   float mPrevX, mPrevY;
 @public
@@ -121,9 +119,6 @@ NSString* ToNSString(const char* cStr);
 - (void) controlTextDidEndEditing: (NSNotification*) aNotification;
 - (void) createTextEntry: (IControl&) control : (const IText&) text : (const char*) str : (NSRect) areaRect;
 - (void) endUserInput;
-//web view
-//- (void) createWebView: (NSRect) areaRect : (const char*) url;
-//- (void) userContentController:didReceiveScriptMessage;
 //pop-up menu
 - (IPopupMenu*) createPopupMenu: (const IPopupMenu&) menu : (NSRect) bounds;
 //tooltip

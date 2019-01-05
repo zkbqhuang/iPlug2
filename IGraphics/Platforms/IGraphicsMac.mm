@@ -579,15 +579,6 @@ void IGraphicsMac::CreatePlatformTextEntry(IControl& control, const IText& text,
   }
 }
 
-//void IGraphicsMac::CreateWebView(const IRECT& bounds, const char* url)
-//{
-//  if (mView)
-//  {
-//    NSRect areaRect = ToNSRect(this, bounds);
-//    [(IGRAPHICS_VIEW*) mView createWebView:areaRect :url];
-//  }
-//}
-
 void IGraphicsMac::SetMouseCursor(ECursor cursor)
 {
   if (mView)
