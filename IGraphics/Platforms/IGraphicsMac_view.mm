@@ -345,16 +345,8 @@ inline int GetMouseOver(IGraphicsMac* pGraphics)
     if (mGraphics)
       mGraphics->SetScreenScale([pWindow backingScaleFactor]);
     
-    [[NSNotificationCenter defaultCenter] addObserver:self
-                                             selector:@selector(windowResized:) name:NSWindowDidResizeNotification
-                                               object:pWindow];
-//
 //    [[NSNotificationCenter defaultCenter] addObserver:self
-//                                             selector:@selector(windowFullscreened:) name:NSWindowDidEnterFullScreenNotification
-//                                               object:pWindow];
-//
-//    [[NSNotificationCenter defaultCenter] addObserver:self
-//                                             selector:@selector(windowFullscreened:) name:NSWindowDidExitFullScreenNotification
+//                                             selector:@selector(windowResized:) name:NSWindowDidResizeNotification
 //                                               object:pWindow];
   }
 }
@@ -911,10 +903,9 @@ static void MakeCursorFromData(NSCursor*& cursor, uint16* data, int hotspot_x, i
   return YES;
 }
 
-- (void)windowResized:(NSNotification *)notification;
-{
-  if(!mGraphics)
-    return;
+//- (void)windowResized:(NSNotification *)notification;
+//{
+//}
 
   NSSize windowSize = [[self window] frame].size;
   NSRect viewFrameInWindowCoords = [self convertRect: [self bounds] toView: nil];
