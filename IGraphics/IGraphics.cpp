@@ -95,7 +95,7 @@ void IGraphics::SetScreenScale(int scale)
   DrawResize();
 }
 
-void IGraphics::Resize(int w, int h, float scale)
+void IGraphics::Resize(int w, int h, float scale, bool informHost)
 {
   w = Clip(w, mMinWidth, mMaxWidth);
   h = Clip(h, mMinHeight, mMaxHeight);
@@ -113,7 +113,7 @@ void IGraphics::Resize(int w, int h, float scale)
   if (mCornerResizer)
     mCornerResizer->OnRescale();
 
-  GetDelegate()->EditorPropertiesModified();
+  GetDelegate()->EditorPropertiesModified(informHost);
   PlatformResize();
   ForAllControls(&IControl::OnResize);
   SetAllControlsDirty();
@@ -1093,11 +1093,11 @@ void IGraphics::OnResizeGesture(float x, float y)
     float scaleX = (x * GetDrawScale()) / mMouseDownX;
     float scaleY = (y * GetDrawScale()) / mMouseDownY;
 
-    Resize(Width(), Height(), std::min(scaleX, scaleY));
+    Resize(Width(), Height(), std::min(scaleX, scaleY), true);
   }
   else
   {
-    Resize((int) x, (int) y, GetDrawScale());
+    Resize((int) x, (int) y, GetDrawScale(), true);
   }
 }
 

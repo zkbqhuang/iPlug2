@@ -128,6 +128,8 @@ public:
   /** Get the name of the track that the plug-in is inserted on */
   virtual void GetTrackName(WDL_String& str) {};
   
+  virtual bool CheckForHostWindowSizeMod(void* pWindow, int& width, int& height) { return false; }
+  
   virtual void DirtyParametersFromUI() override;
 #pragma mark - Methods called by the API class - you do not call these methods in your plug-in class
 

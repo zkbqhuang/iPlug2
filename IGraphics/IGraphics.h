@@ -711,8 +711,9 @@ public:
   /** \todo detailed description of how this works
    * @param w New width in pixels
    * @param h New height in pixels
-   * @param scale New scale ratio */
-  void Resize(int w, int h, float scale);
+   * @param scale New scale ratio
+   * @param informHost should the resize be passed on to the host app (false if host window is doing the resizing) */
+  void Resize(int w, int h, float scale, bool informHost);
   
   /** Enables strict drawing mode. \todo explain strict drawing
    * @param strict Set /true to enable strict drawing mode */
@@ -776,6 +777,8 @@ public:
   /** Shows a control to display the frame rate of drawing
    * @param enable \c true to show */
   void ShowFPSDisplay(bool enable);
+  
+  bool GetResizingInProgress() const { return mResizingInProcess; }
   
   /** @return \c true if performance display is shown */
   bool ShowingFPSDisplay() { return mPerfDisplay != nullptr; }

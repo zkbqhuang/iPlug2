@@ -64,7 +64,7 @@ public:
   IGraphics* GetUI() { return mGraphics; };
 
   /** Called when the IGraphics context properties are changed */
-  void EditorPropertiesModified();
+  void EditorPropertiesModified(bool informHost);
   
   /** Override this method to serialize custom editor state data.
   * @param chunk The output bytechunk where data can be serialized

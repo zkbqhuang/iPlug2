@@ -49,6 +49,34 @@ void IPlugAPP::EditorPropertiesChangedFromDelegate(int viewWidth, int viewHeight
   IPlugAPIBase::EditorPropertiesChangedFromDelegate(viewWidth, viewHeight, data);
 }
 
+bool IPlugAPP::CheckForHostWindowSizeMod(void* pWindow, int& width, int& height)
+{
+  HWND hwnd = static_cast<HWND>(pWindow);
+  
+  HWND parent = GetParent(hwnd);
+  
+  if (parent)
+  {
+    RECT pr;
+    RECT r;
+    GetWindowRect(hwnd, &r);
+    ScreenToClient(parent,(LPPOINT) &r);
+    ScreenToClient(parent,((LPPOINT) &r)+1);
+    GetClientRect(parent, &pr);
+    int neww = pr.right - r.left;
+    int newh = pr.bottom - r.top;
+    
+    if (r.bottom != r.top + newh || r.right != r.left + neww)
+    {
+      width = neww;
+      height = newh;
+      return true;
+    }
+  }
+  
+  return false;
+}
+
 bool IPlugAPP::SendMidiMsg(const IMidiMsg& msg)
 {
   if (DoesMIDIOut() && mAppHost->mMidiOut)

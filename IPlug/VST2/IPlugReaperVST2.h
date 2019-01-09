@@ -149,6 +149,36 @@ public:
     }
   }
   
+  //TODO: can we assume swell here?
+  bool CheckForHostWindowSizeMod(void* pWindow, int& width, int& height) override
+  {
+    HWND hwnd = static_cast<HWND>(pWindow);
+    
+    HWND parent = GetParent(hwnd);
+    
+    if (parent)
+    {
+      RECT pr;
+      RECT r;
+      GetWindowRect(hwnd, &r);
+      ScreenToClient(parent,(LPPOINT) &r);
+      ScreenToClient(parent, ((LPPOINT) &r)+1);
+      GetClientRect(parent, &pr);
+      int neww = pr.right - r.left;
+      int newh = pr.bottom - r.top;
+      
+      if (r.bottom != r.top + newh || r.right != r.left + neww)
+      {
+        width = neww;
+        height = newh;
+        return true;
+      }
+    }
+    
+    return false;
+  }
+
+  
 private:
 //  template<typename T>
 //  T (*GetFunc(VstInt32 p1, VstIntPtr p2, const char* str = NULL, float p3 = 0.f))()
