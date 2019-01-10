@@ -18,7 +18,7 @@ class IGraphicsStressTest : public IPlug
 {
 public:
   IGraphicsStressTest(IPlugInstanceInfo instanceInfo);
-  
+  void OnIdle() override;
 public:
   int mNumberOfThings = 16;
   int mKindOfThing = 0;

@@ -61,7 +61,7 @@ bool IPlugAPP::CheckForHostWindowSizeMod(void* pWindow, int& width, int& height)
     RECT r;
     GetWindowRect(hwnd, &r);
     ScreenToClient(parent,(LPPOINT) &r);
-    ScreenToClient(parent,((LPPOINT) &r)+1);
+    ScreenToClient(parent, ((LPPOINT) &r)+1);
     GetClientRect(parent, &pr);
     int neww = pr.right - r.left;
     int newh = pr.bottom - r.top;
