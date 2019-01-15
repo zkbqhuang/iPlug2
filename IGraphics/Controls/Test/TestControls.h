@@ -30,3 +30,5 @@
 #include "TestDropShadowControl.h"
 #include "TestCursorControl.h"
 #include "TestKeyboardControl.h"
+#include "TestRotatingMaskControl.h"
+#include "TestShadowGradientControl.h"

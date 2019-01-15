@@ -66,7 +66,7 @@ IPlugVST3::IPlugVST3(IPlugInstanceInfo instanceInfo, IPlugConfig c)
 
   if (MaxNChannels(ERoute::kInput))
   {
-    mLatencyDelay = new NChanDelayLine<PLUG_SAMPLE_DST>(MaxNChannels(ERoute::kInput), MaxNChannels(ERoute::kOutput));
+    mLatencyDelay = std::unique_ptr<NChanDelayLine<PLUG_SAMPLE_DST>>(new NChanDelayLine<PLUG_SAMPLE_DST>(MaxNChannels(ERoute::kInput), MaxNChannels(ERoute::kOutput)));
     mLatencyDelay->SetDelayTime(GetLatency());
   }
 
@@ -183,7 +183,6 @@ tresult PLUGIN_API IPlugVST3::initialize(FUnknown* context)
     }
   }
 
-  OnHostIdentified();
   RestorePreset(0);
 
   return result;

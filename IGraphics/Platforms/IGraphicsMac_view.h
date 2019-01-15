@@ -86,6 +86,7 @@ NSString* ToNSString(const char* cStr);
 {
   NSTimer* mTimer;
   NSTextField* mTextFieldView;
+  NSCursor* mMoveCursor;
   IControl* mEdControl; // the control linked to the open text edit
   float mPrevX, mPrevY;
 @public
@@ -120,7 +121,7 @@ NSString* ToNSString(const char* cStr);
 - (void) createTextEntry: (IControl&) control : (const IText&) text : (const char*) str : (NSRect) areaRect;
 - (void) endUserInput;
 //pop-up menu
-- (IPopupMenu*) createPopupMenu: (const IPopupMenu&) menu : (NSRect) bounds;
+- (IPopupMenu*) createPopupMenu: (IPopupMenu&) menu : (NSRect) bounds;
 //tooltip
 - (NSString*) view: (NSView*) pView stringForToolTip: (NSToolTipTag) tag point: (NSPoint) point userData: (void*) pData;
 - (void) registerToolTip: (IRECT&) bounds;

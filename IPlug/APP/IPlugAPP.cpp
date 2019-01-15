@@ -29,8 +29,7 @@ IPlugAPP::IPlugAPP(IPlugInstanceInfo instanceInfo, IPlugConfig c)
   SetChannelConnections(ERoute::kOutput, 0, MaxNChannels(ERoute::kOutput), true);
 
   SetBlockSize(DEFAULT_BLOCK_SIZE);
-  SetHost("standalone", c.vendorVersion);
-    
+  
   CreateTimer();
 }
 
@@ -94,7 +93,7 @@ bool IPlugAPP::SendSysEx(const ISysEx& msg)
 
 void IPlugAPP::SendSysexMsgFromUI(const ISysEx& msg)
 {
-  SendSysEx(const_cast<ISysEx&>(msg));
+  SendSysEx(msg);
 }
 
 void IPlugAPP::AppProcess(double** inputs, double** outputs, int nFrames)
