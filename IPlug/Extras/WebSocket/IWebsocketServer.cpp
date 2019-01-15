@@ -1,18 +1,12 @@
 /*
  ==============================================================================
  
- This file is part of the iPlug 2 library
+ This file is part of the iPlug 2 library. Copyright (C) the iPlug 2 developers. 
  
- Oli Larkin et al. 2018 - https://www.olilarkin.co.uk
- 
- iPlug 2 is an open source library subject to commercial or open-source
- licensing.
- 
- The code included in this file is provided under the terms of the WDL license
- - https://www.cockos.com/wdl/
+ See LICENSE.txt for  more info.
  
  ==============================================================================
- */
+*/
 
 #include "IWebsocketServer.h"
 
@@ -115,7 +109,7 @@ bool IWebsocketServer::DoSendToConnection(int idx, int opcode, const char* pData
   
   std::function<bool(int)> sendFunc = [&](int connIdx) {
     WDL_MutexLock lock(&mMutex);
-    mg_connection* pConn = const_cast<mg_connection*>(mConnections.Get(connIdx));
+    mg_connection* pConn = mConnections.Get(connIdx);
     
     if(pConn) {
       if(mg_websocket_write(pConn, opcode, pData, sizeInBytes))
@@ -147,10 +141,7 @@ bool IWebsocketServer::DoSendToConnection(int idx, int opcode, const char* pData
 bool IWebsocketServer::handleConnection(CivetServer* pServer, const struct mg_connection* pConn)
 {
   WDL_MutexLock lock(&mMutex);
-
-  mConnections.Add(pConn);
-  
-  DBGMSG("WS connected NClients %i\n", NClients());
+  DBGMSG("WS connected\n");
 
   return true;
 }
@@ -159,7 +150,9 @@ void IWebsocketServer::handleReadyState(CivetServer* pServer, struct mg_connecti
 {
   WDL_MutexLock lock(&mMutex);
   
-  DBGMSG("WS ready\n");
+  mConnections.Add(pConn);
+  
+  DBGMSG("WS ready NClients %i\n", NClients());
   
   OnWebsocketReady(NClients()-1); // should defer to main thread
 }
@@ -172,7 +165,7 @@ bool IWebsocketServer::handleData(CivetServer* pServer, struct mg_connection* pC
   
   if(*firstByte == 129) // TODO: check that
   {
-    return OnWebsocketText(mConnections.Find(pConn), const_cast<char*>(pData), dataSize);
+    return OnWebsocketText(mConnections.Find(pConn), pData, dataSize);
   }
   else if(*firstByte == 130) // TODO: check that
   {

@@ -1,29 +1,26 @@
 /*
  ==============================================================================
  
- This file is part of the iPlug 2 library
+ This file is part of the iPlug 2 library. Copyright (C) the iPlug 2 developers. 
  
- Oli Larkin et al. 2018 - https://www.olilarkin.co.uk
- 
- iPlug 2 is an open source library subject to commercial or open-source
- licensing.
- 
- The code included in this file is provided under the terms of the WDL license
- - https://www.cockos.com/wdl/
+ See LICENSE.txt for  more info.
  
  ==============================================================================
- */
+*/
 
 #pragma once
 
-#include <random>
+/**
+ * @file
+ * @copydoc IPluginBase
+ */
 
 #include "IPlugDelegate_select.h"
 #include "IPlugParameter.h"
 #include "IPlugStructs.h"
 #include "IPlugLogger.h"
 
-/** TODO: */
+/** Base class that contains plug-in info and state manipulation methods */
 class IPluginBase : public EDITOR_DELEGATE_CLASS
 {
 public:
@@ -58,17 +55,17 @@ public:
   /** @return The plug-in manufacturer's unique four character ID as an integer */
   int GetMfrID() const { return mMfrID; }
   
-  /** @return The host if it has been identified, see EHost enum for a list of possible hosts, implemented in the API class for VST2 and AUv2 */
-  virtual EHost GetHost() { return mHost; }
+  /** @return The host if it has been identified, see EHost enum for a list of possible hosts */
+   EHost GetHost() const { return mHost; }
   
   /** Get the host version number as an integer
    * @param decimal \c true indicates decimal format = VVVVRRMM, otherwise hexadecimal 0xVVVVRRMM.
    * @return The host version number as an integer. */
-  int GetHostVersion(bool decimal); //
+  int GetHostVersion(bool decimal) const;
   
   /** Get the host version number as a string
    * @param str string into which to write the host version */
-  void GetHostVersionStr(WDL_String& str);
+  void GetHostVersionStr(WDL_String& str) const;
   
   /** @return The The plug-in API, see EAPI enum for a list of possible APIs */
   EAPI GetAPI() const { return mAPI; }
@@ -87,12 +84,12 @@ public:
   /** @return \c true if the plug-in is meant to have a UI, as defined in config.h */
   bool HasUI() const { return mHasUI; }
   
-  const char* GetBundleID() { return mBundleID.Get(); }
+  const char* GetBundleID() const { return mBundleID.Get(); }
     
 #pragma mark - Parameters
   
   /** @return The number of unique parameter groups identified */
-  int NParamGroups() { return mParamGroups.GetSize(); }
+  int NParamGroups() const { return mParamGroups.GetSize(); }
   
   /** Called to add a parameter group name, when a unique group name is discovered
    * @param name CString for the unique group name
@@ -102,25 +99,25 @@ public:
   /** Get the parameter group name as a particular index
    * @param idx The index to return
    * @return CString for the unique group name */
-  const char* GetParamGroupName(int idx) { return mParamGroups.Get(idx); }
+  const char* GetParamGroupName(int idx) const { return mParamGroups.Get(idx); }
   
   /** Implemented by the API class, call this if you update parameter labels and hopefully the host should update it's displays (not applicable to all APIs) */
   virtual void InformHostOfParameterDetailsChange() {};
   
 #pragma mark - Parameter Change
-  /** Override this method to do something when a parameter changes.
-   * THIS METHOD **CAN BE** CALLED BY THE HIGH PRIORITY AUDIO THREAD
+  /** Override this method to do something to your DSP when a parameter changes.
+   * WARNING: this method can in some cases be called on the realtime audio thread
    * @param paramIdx The index of the parameter that changed
    * @param source One of the EParamSource options to indicate where the parameter change came from.
-   * @param sampleOffset For sample accurate parameter changes - index into current block
-   */
+   * @param sampleOffset For sample accurate parameter changes - index into current block */
   virtual void OnParamChange(int paramIdx, EParamSource source, int sampleOffset = -1);
   
-  /** Another version of the OnParamChange method without an EParamSource, for backwards compatibility / simplicity. */
+  /** Another version of the OnParamChange method without an EParamSource, for backwards compatibility / simplicity.
+   * WARNING: this method can in some cases be called on the realtime audio thread */
   virtual void OnParamChange(int paramIdx) {}
   
-  /** Calls OnParamChange() for each parameter and finally OnReset().
-   * @param source Specifies the source of this parameter change */
+  /** Calls OnParamChange() and OnParamChangeUI() for each parameter.
+   * @param source Specifies the source of the parameter changes */
   void OnParamReset(EParamSource source);
   
 #pragma mark - State Serialization
@@ -130,7 +127,7 @@ public:
   /** Serializes the current double precision floating point, non-normalised values (IParam::mValue) of all parameters, into a binary byte chunk.
    * @param chunk The output chunk to serialize to. Will append data if the chunk has already been started.
    * @return \c true if the serialization was successful */
-  bool SerializeParams(IByteChunk& chunk);
+  bool SerializeParams(IByteChunk& chunk) const;
   
   /** Unserializes double precision floating point, non-normalised values from a byte chunk into mParams.
    * @param chunk The incoming chunk where parameter values are stored to unserialize
@@ -141,7 +138,7 @@ public:
   /** Override this method to serialize custom state data, if your plugin does state chunks.
    * @param chunk The output bytechunk where data can be serialized
    * @return \c true if serialization was successful*/
-  virtual bool SerializeState(IByteChunk& chunk) { TRACE; return SerializeParams(chunk); }
+  virtual bool SerializeState(IByteChunk& chunk) const { TRACE; return SerializeParams(chunk); }
   
   /** Override this method to unserialize custom state data, if your plugin does state chunks.
    * Implementations should call UnserializeParams() after custom data is unserialized
@@ -153,7 +150,7 @@ public:
   /** VST3 ONLY! - THIS IS ONLY INCLUDED FOR COMPATIBILITY - NOONE ELSE SHOULD NEED IT!
    * @param chunk The output bytechunk where data can be serialized.
    * @return \c true if serialization was successful */
-  virtual bool SerializeVST3CtrlrState(IByteChunk& chunk) { return true; }
+  virtual bool SerializeVST3CtrlrState(IByteChunk& chunk) const { return true; }
   
   /** VST3 ONLY! - THIS IS ONLY INCLUDED FOR COMPATIBILITY - NOONE ELSE SHOULD NEED IT!
    * @param chunk chunk The incoming chunk containing the state data.
@@ -175,7 +172,7 @@ public:
 #ifdef NO_PRESETS
   /** Gets the number of factory presets. NOTE: some hosts don't like 0 presets, so even if you don't support factory presets, this method should return 1
    * @return The number of factory presets */
-  virtual int NPresets() { return 1; }
+  virtual int NPresets() const { return 1; }
   
   /** This method should update the current preset with current values
    * NOTE: This is only relevant for VST2 plug-ins, which is the only format to have the notion of banks?
@@ -195,16 +192,16 @@ public:
   /** Get the name a preset
    * @param idx The index of the preset whose name to get
    * @return CString preset name */
-  virtual const char* GetPresetName(int idx) { return "-"; }
+  virtual const char* GetPresetName(int idx) const { return "-"; }
   
 #else
   #pragma mark - Preset Manipulation - OPs - These methods are not included if you define NO_PRESETS
   
   void ModifyCurrentPreset(const char* name = 0);
-  int NPresets() { return mPresets.GetSize(); }
+  int NPresets() const { return mPresets.GetSize(); }
   bool RestorePreset(int idx);
   bool RestorePreset(const char* name);
-  const char* GetPresetName(int idx);
+  const char* GetPresetName(int idx) const;
   
   // You can't use these three methods with chunks-based plugins, because there is no way to set the custom data
   void MakeDefaultPreset(const char* name = 0, int nPresets = 1);
@@ -223,45 +220,42 @@ public:
   // VST2 API only
   virtual void OnPresetsModified() {}
   void EnsureDefaultPreset();
-  bool SerializePresets(IByteChunk& chunk);
+  bool SerializePresets(IByteChunk& chunk) const;
   int UnserializePresets(IByteChunk& chunk, int startPos); // Returns the new chunk position (endPos).
   // /VST2 API only
   
   // Dump the current state as source code for a call to MakePresetFromNamedParams / MakePresetFromBlob
-  void DumpPresetSrcCode(const char* file, const char* paramEnumNames[]);
-  void DumpPresetBlob(const char* file);
-  void DumpAllPresetsBlob(const char* filename);
-  void DumpBankBlob(const char* file);
+  void DumpPresetSrcCode(const char* file, const char* paramEnumNames[]) const;
+  void DumpPresetBlob(const char* file) const;
+  void DumpAllPresetsBlob(const char* filename) const;
+  void DumpBankBlob(const char* file) const;
   
   //VST2 Presets
-  bool SaveProgramAsFXP(const char* file);
-  bool SaveBankAsFXB(const char* file);
+  bool SaveProgramAsFXP(const char* file) const;
+  bool SaveBankAsFXB(const char* file) const;
   bool LoadProgramFromFXP(const char* file);
   bool LoadBankFromFXB(const char* file);
-  bool SaveBankAsFXPs(const char* path) { return false; }
+  bool SaveBankAsFXPs(const char* path) const { return false; }
   
   //VST3 format
-  bool SaveProgramAsVSTPreset(const char* file) { return false; }
-  bool LoadProgramFromVSTPreset(const char* file) { return false; }
+  void MakeVSTPresetChunk(IByteChunk& chunk, IByteChunk& componentState, IByteChunk& controllerState) const;
+  bool SaveProgramAsVSTPreset(const char* file) const;
+  bool LoadProgramFromVSTPreset(const char* file);
   bool SaveBankAsVSTPresets(const char* path) { return false; }
   
   //AU format
-  bool SaveProgramAsAUPreset(const char* name, const char* file) { return false; }
+  bool SaveProgramAsAUPreset(const char* name, const char* file) const { return false; }
   bool LoadProgramFromAUPreset(const char* file) { return false; }
   bool SaveBankAsAUPresets(const char* path) { return false; }
   
   //ProTools format
-  bool SaveProgramAsProToolsPreset(const char* presetName, const char* file, unsigned long pluginID) { return false; }
+  bool SaveProgramAsProToolsPreset(const char* presetName, const char* file, unsigned long pluginID) const { return false; }
   bool LoadProgramFromProToolsPreset(const char* file) { return false; }
   bool SaveBankAsProToolsPresets(const char* bath, unsigned long pluginID) { return false; }
 #endif
   
 #pragma mark - Parameter manipulation
-  
-  /** Initialise this delegate from another one
-   * @param delegate The delegate to clone */
-  void InitFromDelegate(IPluginBase& delegate);
-  
+    
   /** Initialise a range of parameters simultaneously. This mirrors the arguments available in IParam::InitDouble, for maximum flexibility
    * @param startIdx The index of the first parameter to initialise
    * @param endIdx The index of the last parameter to initialise
@@ -310,6 +304,9 @@ public:
    * @param outGroup The name of the group to copy to */
   void CopyParamValues(const char* inGroup, const char* outGroup);
   
+  /** Randomise all parameters */
+  void RandomiseParamValues();
+  
   /** Randomise parameter values within a range. NOTE for more flexibility in terms of RNG etc, use ForParamInRange()
    * @param startIdx The index of the first parameter to modify
    * @param endIdx The index of the last parameter to modify */
@@ -319,6 +316,9 @@ public:
    * @param paramGroup The name of the group to modify */
   void RandomiseParamValues(const char* paramGroup);
   
+  /** Set all parameters to their default values */
+  void DefaultParamValues();
+
   /** Default parameter values within a range.
    * @param startIdx The index of the first parameter to modify
    * @param endIdx The index of the last parameter to modify */
@@ -327,6 +327,9 @@ public:
   /** Default parameter values for a parameter group
    * @param paramGroup The name of the group to modify */
   void DefaultParamValues(const char* paramGroup);
+  
+  /** Default parameter values for a parameter group  */
+  void PrintParamValues();
 
 protected:
   int mCurrentPresetIdx = 0;
@@ -352,6 +355,12 @@ protected:
   EAPI mAPI;
   /** macOS/iOS bundle ID */
   WDL_String mBundleID;
+  /** Saving VST3 format presets requires this see SaveProgramAsVSTPreset */
+  WDL_String mVST3ProductCategory;
+  /** Saving VST3 format presets requires this see SaveProgramAsVSTPreset */
+  WDL_String mVST3ProcessorUIDStr;
+  /** Saving VST3 format presets requires this see SaveProgramAsVSTPreset */
+  WDL_String mVST3ControllerUIDStr;
   
   /** \c true if the plug-in has a user interface. If false the host will provide a default interface */
   bool mHasUI = false;
@@ -363,7 +372,7 @@ protected:
   WDL_PtrList<IPreset> mPresets;
 #endif
 
-#ifndef NO_PARAMS_MUTEX
+#ifdef PARAMS_MUTEX
   /** Lock when accessing mParams (including via GetParam) from the audio thread */
   WDL_Mutex mParams_mutex;
 #endif  

@@ -1,7 +1,31 @@
+/*
+ ==============================================================================
+
+ This file is part of the iPlug 2 library. Copyright (C) the iPlug 2 developers.
+
+ See LICENSE.txt for  more info.
+
+ ==============================================================================
+*/
+
 #include <cmath>
 
 #include "IControl.h"
 #include "IPlugParameter.h"
+
+// avoid some UNICODE issues with VST3 SDK and WDL dirscan
+#if defined VST3_API && defined OS_WIN
+  #ifdef FindFirstFile
+    #undef FindFirstFile
+    #undef FindNextFile
+    #undef WIN32_FIND_DATA
+    #undef PWIN32_FIND_DATA
+    #define FindFirstFile FindFirstFileA
+    #define FindNextFile FindNextFileA
+    #define WIN32_FIND_DATA WIN32_FIND_DATAA
+    #define LPWIN32_FIND_DATA LPWIN32_FIND_DATAA
+  #endif
+#endif
 
 #include "dirscan.h"
 
@@ -33,18 +57,16 @@ void FlashCircleAnimationFunc(IControl* pCaller)
 void DefaultClickActionFunc(IControl* pCaller) { pCaller->SetAnimation(DefaultAnimationFunc, DEFAULT_ANIMATION_DURATION); };
 void FlashCircleClickActionFunc(IControl* pCaller) { pCaller->SetAnimation(FlashCircleAnimationFunc, DEFAULT_ANIMATION_DURATION); }
 
-IControl::IControl(IGEditorDelegate& dlg, IRECT bounds, int paramIdx, IActionFunction actionFunc)
-: mDelegate(dlg)
-, mRECT(bounds)
+IControl::IControl(IRECT bounds, int paramIdx, IActionFunction actionFunc)
+: mRECT(bounds)
 , mTargetRECT(bounds)
 , mParamIdx(paramIdx)
 , mActionFunc(actionFunc)
 {
 }
 
-IControl::IControl(IGEditorDelegate& dlg, IRECT bounds, IActionFunction actionFunc)
-: mDelegate(dlg)
-, mRECT(bounds)
+IControl::IControl(IRECT bounds, IActionFunction actionFunc)
+: mRECT(bounds)
 , mTargetRECT(bounds)
 , mParamIdx(kNoParameter)
 , mActionFunc(actionFunc)
@@ -77,6 +99,15 @@ void IControl::SetValueFromUserInput(double value)
   }
 }
 
+void IControl::SetValueToDefault()
+{
+  if (mParamIdx || mDefaultValue >= 0.0)
+  {
+    mValue = mParamIdx > kNoParameter ? GetParam()->GetDefault(true) : mDefaultValue;
+    SetDirty(true);
+  }
+}
+
 void IControl::SetDirty(bool triggerAction)
 {
   mValue = Clip(mValue, mClampLo, mClampHi);
@@ -86,7 +117,7 @@ void IControl::SetDirty(bool triggerAction)
   {
     if(mParamIdx > kNoParameter)
     {
-      mDelegate.SendParameterValueFromUI(mParamIdx, mValue);
+      GetDelegate()->SendParameterValueFromUI(mParamIdx, mValue);
       GetUI()->UpdatePeers(this);
       
       const IParam* pParam = GetParam();
@@ -111,8 +142,10 @@ void IControl::SetDirty(bool triggerAction)
 
 bool IControl::IsDirty()
 {
-  if(GetAnimationFunction())
+  if(GetAnimationFunction()) {
     mAnimationFunc(this);
+    return true;
+  }
   
   return mDirty;
 }
@@ -132,10 +165,9 @@ void IControl::GrayOut(bool gray)
 void IControl::OnMouseDown(float x, float y, const IMouseMod& mod)
 {
   #ifdef PROTOOLS
-  if (mod.A && mDefaultValue >= 0.0)
+  if (mod.A)
   {
-    mValue = mDefaultValue;
-    SetDirty();
+    SetValueToDefault();
   }
   #endif
 
@@ -150,8 +182,7 @@ void IControl::OnMouseDblClick(float x, float y, const IMouseMod& mod)
   #else
   if (mDefaultValue >= 0.0)
   {
-    mValue = mDefaultValue;
-    SetDirty();
+    SetValueToDefault();
   }
   #endif
 }
@@ -230,7 +261,7 @@ void IControl::DrawPTHighlight(IGraphics& g)
 const IParam* IControl::GetParam()
 {
   if(mParamIdx >= 0)
-    return mDelegate.GetParam(mParamIdx);
+    return GetDelegate()->GetParam(mParamIdx);
   else
     return nullptr;
 }
@@ -275,9 +306,18 @@ void ITextControl::SetStr(const char* str)
 {
   if (strcmp(mStr.Get(), str))
   {
-    SetDirty(false);
     mStr.Set(str);
+    SetDirty(false);
   }
+}
+
+void ITextControl::SetStrFmt(int maxlen, const char* fmt, ...)
+{
+  va_list arglist;
+  va_start(arglist, fmt);
+  mStr.SetAppendFormattedArgs(false, maxlen, fmt, arglist);
+  va_end(arglist);
+  SetDirty(false);
 }
 
 void ITextControl::Draw(IGraphics& g)
@@ -288,19 +328,14 @@ void ITextControl::Draw(IGraphics& g)
     g.DrawText(mText, mStr.Get(), mRECT);
 }
 
-ICaptionControl::ICaptionControl(IGEditorDelegate& dlg, IRECT bounds, int paramIdx, const IText& text, bool showParamLabel)
-: ITextControl(dlg, bounds, "", text)
+ICaptionControl::ICaptionControl(IRECT bounds, int paramIdx, const IText& text, bool showParamLabel)
+: ITextControl(bounds, "", text)
 , mShowParamLabel(showParamLabel)
 {
   mParamIdx = paramIdx;
-  
-  if(GetParam()->Type() == IParam::kTypeEnum)
-  {
-    mIsListControl = true;
-  }
-  
   mDblAsSingleClick = true;
   mDisablePrompt = false;
+  mIgnoreMouse = false;
 }
 
 void ICaptionControl::OnMouseDown(float x, float y, const IMouseMod& mod)
@@ -328,14 +363,21 @@ void ICaptionControl::Draw(IGraphics& g)
 
   ITextControl::Draw(g);
   
-  if(mIsListControl) {
-    IRECT triRect = mRECT.FracRectHorizontal(0.2f, true).GetCentredInside(IRECT(0, 0, 8, 5));
-    g.FillTriangle(COLOR_DARK_GRAY, triRect.L, triRect.T, triRect.R, triRect.T, triRect.MW(), triRect.B, GetMouseIsOver() ? 0 : &BLEND_50);
+  if(mTri.W()) {
+    g.FillTriangle(COLOR_DARK_GRAY, mTri.L, mTri.T, mTri.R, mTri.T, mTri.MW(), mTri.B, GetMouseIsOver() ? 0 : &BLEND_50);
   }
 }
 
-IButtonControlBase::IButtonControlBase(IGEditorDelegate& dlg, IRECT bounds, IActionFunction actionFunc)
-: IControl(dlg, bounds, kNoParameter, actionFunc)
+void ICaptionControl::OnResize()
+{
+  if(GetParam()->Type() == IParam::kTypeEnum)
+  {
+    mTri = mRECT.FracRectHorizontal(0.2f, true).GetCentredInside(IRECT(0, 0, 8, 5)); //TODO: This seems rubbish
+  }
+}
+
+IButtonControlBase::IButtonControlBase(IRECT bounds, IActionFunction actionFunc)
+: IControl(bounds, kNoParameter, actionFunc)
 {
 }
 
@@ -351,15 +393,19 @@ void IButtonControlBase::OnEndAnimation()
   IControl::OnEndAnimation();
 }
 
-ISwitchControlBase::ISwitchControlBase(IGEditorDelegate& dlg, IRECT bounds, int paramIdx, IActionFunction actionFunc,
+ISwitchControlBase::ISwitchControlBase(IRECT bounds, int paramIdx, IActionFunction actionFunc,
   int numStates)
-  : IControl(dlg, bounds, paramIdx, actionFunc)
+  : IControl(bounds, paramIdx, actionFunc)
+  , mNumStates(numStates)
 {
-  if (paramIdx > kNoParameter)
+  assert(mNumStates > 1);
+}
+
+void ISwitchControlBase::OnInit()
+{
+  if (mParamIdx > kNoParameter)
     mNumStates = (int) GetParam()->GetRange() + 1;
-  else
-    mNumStates = numStates;
-  
+ 
   assert(mNumStates > 1);
 }
 
@@ -445,8 +491,10 @@ int IDirBrowseControlBase::NItems()
   return mItems.GetSize();
 }
 
-void IDirBrowseControlBase::AddPath(const char * path, const char * label)
+void IDirBrowseControlBase::AddPath(const char* path, const char* label)
 {
+  assert(strlen(path));
+
   mPaths.Add(new WDL_String(path));
   mPathLabels.Add(new WDL_String(label));
 }
@@ -493,28 +541,28 @@ void IDirBrowseControlBase::SetUpMenu()
   CollectSortedItems(&mMainMenu);
 }
 
-void IDirBrowseControlBase::GetSelectedItemLabel(WDL_String& label)
-{
-  if (mSelectedMenu != nullptr) {
-    if(mSelectedIndex > -1)
-      label.Set(mSelectedMenu->GetItem(mSelectedIndex)->GetText());
-  }
-  else
-    label.Set("");
-}
-
-void IDirBrowseControlBase::GetSelectedItemPath(WDL_String& path)
-{
-  if (mSelectedMenu != nullptr) {
-    if(mSelectedIndex > -1) {
-      path.Set(mPaths.Get(0)->Get()); //TODO: what about multiple paths
-      path.AppendFormatted(1024, "/%s", mSelectedMenu->GetItem(mSelectedIndex)->GetText());
-      path.Append(mExtension.Get());
-    }
-  }
-  else
-    path.Set("");
-}
+//void IDirBrowseControlBase::GetSelectedItemLabel(WDL_String& label)
+//{
+//  if (mSelectedMenu != nullptr) {
+//    if(mSelectedIndex > -1)
+//      label.Set(mSelectedMenu->GetItem(mSelectedIndex)->GetText());
+//  }
+//  else
+//    label.Set("");
+//}
+//
+//void IDirBrowseControlBase::GetSelectedItemPath(WDL_String& path)
+//{
+//  if (mSelectedMenu != nullptr) {
+//    if(mSelectedIndex > -1) {
+//      path.Set(mPaths.Get(0)->Get()); //TODO: what about multiple paths
+//      path.AppendFormatted(1024, "/%s", mSelectedMenu->GetItem(mSelectedIndex)->GetText());
+//      path.Append(mExtension.Get());
+//    }
+//  }
+//  else
+//    path.Set("");
+//}
 
 void IDirBrowseControlBase::ScanDirectory(const char* path, IPopupMenu& menuToAddTo)
 {
@@ -542,7 +590,11 @@ void IDirBrowseControlBase::ScanDirectory(const char* path, IPopupMenu& menuToAd
           const char* a = strstr(f, mExtension.Get());
           if (a && a > f && strlen(a) == strlen(mExtension.Get()))
           {
-            WDL_String menuEntry = WDL_String(f, (int) (a - f));
+            WDL_String menuEntry {f};
+            
+            if(!mShowFileExtensions)
+              menuEntry.Set(f, (int) (a - f));
+            
             IPopupMenu::Item* pItem = new IPopupMenu::Item(menuEntry.Get(), IPopupMenu::Item::kNoFlags, mFiles.GetSize());
             parentDirMenu.AddItem(pItem, -2 /* sort alphabetically */);
             WDL_String* pFullPath = new WDL_String("");
@@ -552,8 +604,12 @@ void IDirBrowseControlBase::ScanDirectory(const char* path, IPopupMenu& menuToAd
         }
       }
     } while (!d.Next());
-
+    
     menuToAddTo = parentDirMenu;
   }
+  
+  if(!mShowEmptySubmenus)
+    parentDirMenu.RemoveEmptySubmenus();
+
 #endif
 }
