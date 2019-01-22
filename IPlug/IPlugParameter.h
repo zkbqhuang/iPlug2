@@ -30,8 +30,7 @@ public:
 
   enum EParamType { kTypeNone, kTypeBool, kTypeInt, kTypeEnum, kTypeDouble };
   enum EParamUnit { kUnitPercentage, kUnitSeconds, kUnitMilliseconds, kUnitSamples, kUnitDB, kUnitLinearGain, kUnitPan, kUnitPhase, kUnitDegrees, kUnitMeters, kUnitRate, kUnitRatio, kUnitFrequency, kUnitOctaves, kUnitCents, kUnitAbsCents, kUnitSemitones, kUnitMIDINote, kUnitMIDICtrlNum, kUnitBPM, kUnitBeats, kUnitCustom };
-  enum EDisplayType { kDisplayLinear, kDisplayLog, kDisplayExp, kDisplaySquared, kDisplaySquareRoot, kDisplayCubed, kDisplayCubeRoot };
-
+  
   enum EFlags
   {
     kFlagsNone            = 0,
@@ -52,7 +51,7 @@ public:
     virtual ~Shape() {}
     virtual Shape* Clone() const = 0;
     virtual void Init(const IParam& param) {}
-    virtual EDisplayType GetDisplayType() const = 0;
+    virtual bool IsLinear() const { return false; };
     virtual double NormalizedToValue(double value, const IParam& param) const = 0;
     virtual double ValueToNormalized(double value, const IParam& param) const = 0;
   };
@@ -61,7 +60,7 @@ public:
   struct ShapeLinear : public Shape
   {
     Shape* Clone() const override { return new ShapeLinear(); };
-    IParam::EDisplayType GetDisplayType() const override { return kDisplayLinear; }
+    bool IsLinear() const override { return false; }
     double NormalizedToValue(double value, const IParam& param) const override;
     double ValueToNormalized(double value, const IParam& param) const override;
   
@@ -73,7 +72,6 @@ public:
   {
     ShapePowCurve(double shape);
     Shape* Clone() const override { return new ShapePowCurve(mShape); };
-    IParam::EDisplayType GetDisplayType() const override;
     double NormalizedToValue(double value, const IParam& param) const override;
     double ValueToNormalized(double value, const IParam& param) const override;
     
@@ -85,7 +83,6 @@ public:
   {
     void Init(const IParam& param) override;
     Shape* Clone() const override { return new ShapeExp(); };
-    IParam::EDisplayType GetDisplayType() const override { return kDisplayLog; }
     double NormalizedToValue(double value, const IParam& param) const override;
     double ValueToNormalized(double value, const IParam& param) const override;
     
@@ -169,7 +166,7 @@ public:
   
   EParamType Type() const { return mType; }
   EParamUnit Unit() const { return mUnit; }
-  EDisplayType DisplayType() const { return mShape->GetDisplayType(); }
+  bool IsLinear() const { return mShape->IsLinear(); }
   
   double GetDefault(bool normalized = false) const { return normalized ? ToNormalized(GetDefault()) : mDefault; }
   

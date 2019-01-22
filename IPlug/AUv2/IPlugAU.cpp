@@ -51,6 +51,16 @@ struct CStrLocal
   }
 };
 
+inline double AUParamFromHost(double value, const IParam* pParam)
+{
+  return pParam->FromNormalized((value - pParam->GetMin()) / pParam->GetRange());
+}
+
+inline double AUParamToHost(double value, const IParam* pParam)
+{
+  return (pParam->ToNormalized(value) * pParam->GetRange()) + pParam->GetMin();
+}
+
 inline void PutNumberInDict(CFMutableDictionaryRef pDict, const char* key, void* pNumber, CFNumberType type)
 {
   CFStrLocal cfKey(key);
@@ -525,8 +535,8 @@ OSStatus IPlugAU::GetProperty(AudioUnitPropertyID propID, AudioUnitScope scope, 
         
         if (!pParam->GetCanAutomate())  pInfo->flags |= kAudioUnitParameterFlag_NonRealTime;
         if (pParam->GetMeta()) pInfo->flags |= kAudioUnitParameterFlag_IsElementMeta;
-        if (pParam->NDisplayTexts()) pInfo->flags |= kAudioUnitParameterFlag_ValuesHaveStrings;
-
+        if (pParam->NDisplayTexts() || !pParam->IsLinear()) pInfo->flags |= kAudioUnitParameterFlag_ValuesHaveStrings;
+        
         const char* paramName = pParam->GetNameForHost();
         pInfo->cfNameString = CFStringCreateWithCString(0, pParam->GetNameForHost(), kCFStringEncodingUTF8);
         strcpy(pInfo->name, paramName);   // Max 52.
@@ -583,31 +593,7 @@ OSStatus IPlugAU::GetProperty(AudioUnitPropertyID propID, AudioUnitScope scope, 
             }
           }
         }
-
-        switch (pParam->DisplayType())
-        {
-          case IParam::kDisplayLinear:
-            break;
-          case IParam::kDisplaySquared:
-            pInfo->flags |= kAudioUnitParameterFlag_DisplaySquared;
-            break;
-          case IParam::kDisplaySquareRoot:
-            pInfo->flags |= kAudioUnitParameterFlag_DisplaySquareRoot;
-            break;
-          case IParam::kDisplayCubed:
-            pInfo->flags |= kAudioUnitParameterFlag_DisplayCubed;
-            break;
-          case IParam::kDisplayCubeRoot:
-            pInfo->flags |= kAudioUnitParameterFlag_DisplayCubeRoot;
-            break;
-          case IParam::kDisplayExp:
-            pInfo->flags |= kAudioUnitParameterFlag_DisplayExponential;
-            break;
-          case IParam::kDisplayLog:
-            pInfo->flags |= kAudioUnitParameterFlag_DisplayLogarithmic;
-            break;
-        }
-        
+          
         pInfo->minValue = pParam->GetMin();
         pInfo->maxValue = pParam->GetMax();
         pInfo->defaultValue = pParam->GetDefault();
@@ -986,7 +972,8 @@ OSStatus IPlugAU::GetProperty(AudioUnitPropertyID propID, AudioUnitScope scope, 
       {
         AudioUnitParameterStringFromValue* pSFV = (AudioUnitParameterStringFromValue*) pData;
         ENTER_PARAMS_MUTEX;
-        GetParam(pSFV->inParamID)->GetDisplayForHost(*(pSFV->inValue), false, mParamDisplayStr);
+        const IParam* pParam = GetParam(pSFV->inParamID);
+        pParam->GetDisplayForHost(AUParamFromHost(*(pSFV->inValue), pParam), false, mParamDisplayStr);
         LEAVE_PARAMS_MUTEX;
         pSFV->outString = MakeCFString((const char*) mParamDisplayStr.Get());
       }
@@ -1002,7 +989,8 @@ OSStatus IPlugAU::GetProperty(AudioUnitPropertyID propID, AudioUnitScope scope, 
         {
           CStrLocal cStr(pVFS->inString);
           ENTER_PARAMS_MUTEX;
-          const double v = GetParam(pVFS->inParamID)->StringToValue(cStr.mCStr);
+          const IParam* pParam = GetParam(pVFS->inParamID);
+          const double v = AUParamToHost(pParam->StringToValue(cStr.mCStr), pParam);
           LEAVE_PARAMS_MUTEX;
           pVFS->outValue = (AudioUnitParameterValue) v;
         }
@@ -1530,7 +1518,8 @@ OSStatus IPlugAU::GetParamProc(void* pPlug, AudioUnitParameterID paramID, AudioU
   IPlugAU* _this = (IPlugAU*) pPlug;
   assert(_this != NULL);
   ENTER_PARAMS_MUTEX_STATIC;
-  *pValue = _this->GetParam(paramID)->Value();
+  const IParam* pParam = _this->GetParam(paramID);
+  *pValue = AUParamToHost(pParam->Value(), pParam);
   LEAVE_PARAMS_MUTEX_STATIC;
   return noErr;
 }
@@ -1544,8 +1533,10 @@ OSStatus IPlugAU::SetParamProc(void* pPlug, AudioUnitParameterID paramID, AudioU
   ASSERT_SCOPE(kAudioUnitScope_Global);
   IPlugAU* _this = (IPlugAU*) pPlug;
   ENTER_PARAMS_MUTEX_STATIC;
-  _this->GetParam(paramID)->Set(value);
-  _this->SendParameterValueFromAPI(paramID, value, false);
+  IParam* pParam = _this->GetParam(paramID);
+  double plugValue = AUParamFromHost(value, pParam);
+  pParam->Set(plugValue);
+  _this->SendParameterValueFromAPI(paramID, plugValue, false);
   _this->OnParamChange(paramID, kHost);
   LEAVE_PARAMS_MUTEX_STATIC;
   return noErr;

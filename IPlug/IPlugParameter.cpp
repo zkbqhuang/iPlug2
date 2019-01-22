@@ -38,16 +38,6 @@ IParam::ShapePowCurve::ShapePowCurve(double shape)
 {
 }
 
-IParam::EDisplayType IParam::ShapePowCurve::GetDisplayType() const
-{
-  if (mShape > 2.5) return kDisplayCubeRoot;
-  if (mShape > 1.5) return kDisplaySquareRoot;
-  if (mShape < (2.0 / 5.0)) return kDisplayCubed;
-  if (mShape < (2.0 / 3.0)) return kDisplaySquared;
-  
-  return IParam::kDisplayLinear;
-}
-
 double IParam::ShapePowCurve::NormalizedToValue(double value, const IParam& param) const
 {
   return param.GetMin() + std::pow(value, mShape) * (param.GetMax() - param.GetMin());
