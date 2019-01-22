@@ -1,3 +1,6 @@
+variables:
+  buildLibs: true 
+
 trigger:
 - none
 
@@ -6,10 +9,18 @@ jobs:
   steps:
   - checkout: self
 
-  # - bash: |
-  #     cd ./Dependencies/IGraphics/
-  #     ./download-igraphics-libs-win.sh
-  #   displayName: Download IGraphics Dependencies
+  - bash: |
+      cd ./Dependencies/IGraphics
+      ./download-igraphics-libs.sh
+    displayName: Download IGraphics Dependencies SRC
+    condition: eq(variables.buildLibs, true)
+
+  - bash: |
+      cd $AGENT_TEMPDIRECTORY
+      wget https://github.com/iPlug2/iPlug2/releases/download/setup/IPLUG2_DEPS_MAC.zip
+      wget https://github.com/iPlug2/iPlug2/releases/download/setup/IPLUG2_DEPS_WIN.zip
+    displayName: Download IGraphics Dependencies BUILT
+    condition: eq(variables.buildLibs, false)
 
   - task: DownloadSecureFile@1
     inputs:
@@ -21,23 +32,47 @@ jobs:
       secureFile: "AAX_SDK.zip" 
     displayName: Download AAX SDK
 
+  - task: DownloadSecureFile@1
+    inputs:
+      secureFile: "AGG.zip" 
+    displayName: Download AGG
+
   - task: ExtractFiles@1
     inputs:
       archiveFilePatterns: '$(Agent.TempDirectory)/*.zip' 
-      destinationFolder: 'Dependencies/IPlug'
+      destinationFolder: '$(Agent.TempDirectory)'
       cleanDestinationFolder: false 
+    condition: eq(variables.buildLibs, false)
+
+  - bash: |
+      mkdir ./Dependencies/Build
+      mv $AGENT_TEMPDIRECTORY/IPLUG2_DEPS_MAC/* ./Dependencies/Build
+      mv $AGENT_TEMPDIRECTORY/IPLUG2_DEPS_WIN/* ./Dependencies/Build
+    displayName: Move IGraphics Dependencies BUILT
+    condition: eq(variables.buildLibs, false)
+
+  - bash: |
+      mv $AGENT_TEMPDIRECTORY/AAX_SDK/* ./Dependencies/IPlug/AAX_SDK
+      mv $AGENT_TEMPDIRECTORY/VST2_SDK/* ./Dependencies/IPlug/VST2_SDK
+      mkdir ./Dependencies/IGraphics/AGG
+      mv $AGENT_TEMPDIRECTORY/AGG/* ./Dependencies/IGraphics/AGG
+      rm $AGENT_TEMPDIRECTORY/*.zip
+    displayName: Move Secure File Dependencies
 
   - bash: |
       cd ./Dependencies/IPlug
       rm -r VST3_SDK
       git clone --recursive https://github.com/steinbergmedia/vst3sdk.git VST3_SDK
+      rm -r VST3_SDK/vstgui
+      rm -r VST3_SDK/doc
+      rm -r VST3_SDK/cmake
     displayName: Download VST3 SDK
 
   - bash: |
       cd ./Dependencies/IPlug
       rm -r WAM_SDK
       git clone https://github.com/webaudiomodules/api.git WAM_SDK
-      mv WAM_SDK/wamsdk/* ../
+      mv WAM_SDK/wamsdk/* WAM_SDK
     displayName: Download WAM SDK
 
   - bash: |
@@ -46,13 +81,34 @@ jobs:
       git clone https://github.com/jariseon/audioworklet-polyfill WAM_AWP
     displayName: Download WAM AWP
 
+  - task: DeleteFiles@1
+    inputs:
+      contents: '.git'
+
+  - task: DeleteFiles@1
+    inputs:
+      contents: 'Dependencies/Build/**/*.png'
+
+  # - task: DeleteFiles@1
+  #   inputs:
+  #     contents: 'Dependencies/Build/tmp'
+
+  - task: ArchiveFiles@2
+    inputs:
+      rootFolderOrFile: $(Build.SourcesDirectory)
+      archiveFile: '$(Build.ArtifactStagingDirectory)/SRC.zip'
+      includeRootFolder: false
+
   - task: PublishPipelineArtifact@0
     inputs:
+      targetPath: '$(Build.ArtifactStagingDirectory)'
       artifactName: 'SRC'
     displayName: Publish Source
 
 - job: BUILD_WIN_DEPS
   dependsOn: DOWNLOAD_DEPS 
+  condition: eq(variables.buildLibs, true)
+
   strategy:
     matrix:
       x86_RELEASE:
@@ -71,9 +127,17 @@ jobs:
   pool:
     vmImage: 'vs2017-win2016'
   steps:
+  - checkout: none
+
   - task: DownloadPipelineArtifact@0
     inputs:
-      artifactName: 'SRC' 
+      artifactName: 'SRC'
+
+  - task: ExtractFiles@1
+    inputs:
+      archiveFilePatterns: 'SRC.zip' 
+      cleanDestinationFolder: false 
+      destinationFolder: $(Build.SourcesDirectory)
 
   # build windows dependencies
   - task: VSBuild@1
@@ -90,57 +154,191 @@ jobs:
     displayName: Publish Windows $(buildPlatform) $(buildConfiguration) Dependencies Artifacts
 
 - job: PUBLISH_WIN_DEPS
+  condition: eq(variables.buildLibs, true)
   dependsOn: BUILD_WIN_DEPS
   steps:
-    - task: DownloadPipelineArtifact@0
-      inputs:
-        artifactName: 'DEPS_BUILD_WIN_Win32_Release' 
-        targetPath: 'Dependencies/Build/'
-      displayName: Download Win32_Release Artifact
+  - checkout: none
 
-    - task: DownloadPipelineArtifact@0
-      inputs:
-        artifactName: 'DEPS_BUILD_WIN_Win32_Debug' 
-        targetPath: 'Dependencies/Build/'
-      displayName: Download Win32_Debug Artifact
+  - task: DownloadPipelineArtifact@0
+    inputs:
+      artifactName: 'DEPS_BUILD_WIN_Win32_Release' 
+      targetPath: 'Dependencies/Build/'
+    displayName: Download Win32_Release Artifact
 
-    - task: DownloadPipelineArtifact@0
-      inputs:
-        artifactName: 'DEPS_BUILD_WIN_x64_Release' 
-        targetPath: 'Dependencies/Build/'
-      displayName: Download x64_Release Artifact
+  - task: DownloadPipelineArtifact@0
+    inputs:
+      artifactName: 'DEPS_BUILD_WIN_Win32_Debug' 
+      targetPath: 'Dependencies/Build/'
+    displayName: Download Win32_Debug Artifact
 
-    - task: DownloadPipelineArtifact@0
-      inputs:
-        artifactName: 'DEPS_BUILD_WIN_x64_Debug' 
-        targetPath: 'Dependencies/Build/'
-      displayName: Download x64_Debug Artifact
+  - task: DownloadPipelineArtifact@0
+    inputs:
+      artifactName: 'DEPS_BUILD_WIN_x64_Release' 
+      targetPath: 'Dependencies/Build/'
+    displayName: Download x64_Release Artifact
 
-    - task: DeleteFiles@1
-      inputs:
-        contents: 'Dependencies/Build/tmp'
+  - task: DownloadPipelineArtifact@0
+    inputs:
+      artifactName: 'DEPS_BUILD_WIN_x64_Debug' 
+      targetPath: 'Dependencies/Build/'
+    displayName: Download x64_Debug Artifact
 
-    - task: DeleteFiles@1
-      inputs:
-        contents: 'Dependencies/Build/*.log'
+  - task: DeleteFiles@1
+    inputs:
+      contents: 'Dependencies/Build/*.log'
 
-    - task: PublishPipelineArtifact@0
-      inputs:
-        artifactName: 'IPLUG2_DEPS_WIN'
-        targetPath: 'Dependencies/Build/'
-      displayName: Publish Windows Dependencies Artifacts
+  - task: DeleteFiles@1
+    inputs:
+      contents: 'Dependencies/Build/tmp'
+      
+  - task: PublishPipelineArtifact@0
+    inputs:
+      artifactName: 'IPLUG2_DEPS_WIN'
+      targetPath: 'Dependencies/Build/'
+    displayName: Publish Windows Dependencies Artifacts
 
-    # - task: GithubRelease@0
-    #   inputs:
-    #     gitHubConnection: olilarkin
-    #     repositoryName: iPlug2/iPlug2
-    #     action: 'create'
-    #     target: '$(build.sourceVersion)'
-    #     tagSource: 'manual'
-    #     tag: 'setup'
-    #     title: iPlug2 optional dependencies
-    #     assets: '$(build.artifactStagingDirectory)/*'
-    #     assetUploadMode: 'delete'
-    #     isDraft: true
-    #     isPreRelease: true
-    #     addChangeLog: false
+- job: BUILD_MAC_DEPS
+  dependsOn: DOWNLOAD_DEPS 
+  condition: eq(variables.buildLibs, true)
+
+  pool:
+    vmImage: 'macos-10.13'
+  steps:
+  - checkout: none
+
+  - task: DownloadPipelineArtifact@0
+    inputs:
+      artifactName: 'SRC'
+
+  - task: ExtractFiles@1
+    inputs:
+      archiveFilePatterns: 'SRC.zip'
+      cleanDestinationFolder: false 
+      destinationFolder: $(Build.SourcesDirectory)
+
+  - bash: |
+      #tmp force cairo rebuild
+      rm -r ./Dependencies/Build/src/cairo
+      cd ./Dependencies/IGraphics
+      ./build-igraphics-libs-mac.sh
+
+      cd $BUILD_SOURCESDIRECTORY
+      wget http://releases.llvm.org/7.0.0/clang+llvm-7.0.0-x86_64-apple-darwin.tar.xz
+      tar -xf clang+llvm-7.0.0-x86_64-apple-darwin.tar.xz -C $HOME
+      export PATH=$HOME/clang+llvm-7.0.0-x86_64-apple-darwin/bin:$PATH
+      echo "##vso[task.setvariable variable=PATH]$PATH"
+
+      cd $BUILD_SOURCESDIRECTORY/Dependencies/Extras/faust
+      ./build-faust-mac.sh
+
+      cd $BUILD_SOURCESDIRECTORY/Dependencies/Extras/civetweb
+      ./build-civetweb-mac.sh
+    displayName: Build macOS Dependencies
+
+  - task: DeleteFiles@1
+    inputs:
+      contents: 'Dependencies/Build/*.log'
+      
+  - task: DeleteFiles@1
+    inputs:
+      contents: 'Dependencies/Build/tmp'
+  
+  - task: DeleteFiles@1
+    inputs:
+      contents: 'Dependencies/Build/src'
+
+  - task: PublishPipelineArtifact@0
+    inputs:
+      artifactName: 'IPLUG2_DEPS_MAC'
+      targetPath: 'Dependencies/Build/'
+    displayName: Publish Mac Dependencies Artifacts
+
+# - job: BUILD_MAC_EXAMPLES
+#   dependsOn: DOWNLOAD_DEPS 
+#   strategy:
+#     matrix:
+#       NANOVG:
+#         graphicsBackend: 'NANOVG'
+#         graphicsStr: 'IGRAPHICS_NANOVG IGRAPHICS_METAL'
+#       CAIRO:
+#         graphicsBackend: 'CAIRO'
+#         graphicsStr: 'IGRAPHICS_CAIRO'
+#       LICE:
+#         graphicsBackend: 'LICE'
+#         graphicsStr: 'IGRAPHICS_LICE'
+#       AGG:
+#         graphicsBackend: 'AGG'
+#         graphicsStr: 'IGRAPHICS_AGG'
+
+#   pool:
+#     vmImage: 'macos-10.13'
+
+#   steps:
+#   - checkout: none
+
+#   - task: DownloadPipelineArtifact@0
+#     inputs:
+#       artifactName: 'SRC'
+
+#   - task: ExtractFiles@1
+#     inputs:
+#       archiveFilePatterns: 'SRC.zip'
+#       cleanDestinationFolder: false 
+#       destinationFolder: $(Build.SourcesDirectory)
+
+#   - bash: |
+#       ls -la ./Dependencies/Build/mac/lib
+#       cd ./Examples/IPlugEffect/config
+#       sed -i.bu 's/IGRAPHICS_NANOVG IGRAPHICS_METAL/$(GRAPHICSSTR)/' IPlugEffect-mac.xcconfig
+#       sed -i.bu 's/\/\/EXTRA_LNK_FLAGS/EXTRA_LNK_FLAGS/' IPlugEffect-mac.xcconfig  
+#     displayName: Set Graphics String
+
+#   - task: Xcode@5
+#     inputs:
+#       sdk: 'macosx10.13'
+#       xcWorkspacePath: 'Examples/IPlugEffect/projects/IPlugEffect-macOS.xcodeproj'
+#       args: '-target All -xcconfig Examples/IPlugEffect/config/IPlugEffect-mac.xcconfig'
+#       configuration: 'Release'
+#       xcodeVersion: '9'
+
+#   - task: DeleteFiles@1
+#     inputs:
+#       contents: 'Examples/IPlugEffect/build-mac/*.build'
+
+#   - task: DeleteFiles@1
+#     inputs:
+#       contents: 'Examples/IPlugEffect/build-mac/PCH'
+
+#   - task: PublishPipelineArtifact@0
+#     inputs:
+#       artifactName: 'IPLUG_EFFECT_$(graphicsBackend)'
+#       targetPath: 'Examples/IPlugEffect/build-mac'
+#     displayName: Publish IPlugEffect
+
+  # - bash: |
+  #     cd ./Examples/IPlugInstrument/config
+  #     sed -i.bu 's/IGRAPHICS_NANOVG IGRAPHICS_METAL/$(GRAPHICSSTR)/' IPlugInstrument-mac.xcconfig
+  #     sed -i.bu 's/\/\/EXTRA_LNK_FLAGS/EXTRA_LNK_FLAGS/' IPlugInstrument-mac.xcconfig  
+  #   displayName: Set Graphics String
+
+  # - task: Xcode@5
+  #   inputs:
+  #     sdk: 'macosx10.13'
+  #     xcWorkspacePath: 'Examples/IPlugInstrument/projects/IPlugInstrument-macOS.xcodeproj'
+  #     args: '-target All -xcconfig Examples/IPlugInstrument/config/IPlugInstrument-mac.xcconfig IGRAPHICS_MODE=$(graphicsStr)'
+  #     configuration: 'Release'
+  #     xcodeVersion: '9'
+
+  # - task: DeleteFiles@1
+  #   inputs:
+  #     contents: 'Examples/IPlugInstrument/build-mac/*.build'
+
+  # - task: DeleteFiles@1
+  #   inputs:
+  #     contents: 'Examples/IPlugInstrument/build-mac/PCH'
+
+  # - task: PublishPipelineArtifact@0
+  #   inputs:
+  #     artifactName: 'IPLUG_INSTRUMENT_$(graphicsBackend)'
+  #     targetPath: 'Examples/IPlugInstrument/build-mac'
+  #   displayName: Publish IPlugInstrument
