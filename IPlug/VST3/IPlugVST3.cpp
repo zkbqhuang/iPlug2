@@ -399,7 +399,7 @@ tresult PLUGIN_API IPlugVST3::process(ProcessData& data)
     {
       if (HasSidechainInput())
       {
-        if (getAudioInput(1)->isActive()) // Sidechain is active
+        if (getAudioInput(1)->isActive() == kResultTrue) // Sidechain is active
         {
           mSidechainActive = true;
           SetChannelConnections(ERoute::kInput, 0, MaxNChannels(ERoute::kInput), true);

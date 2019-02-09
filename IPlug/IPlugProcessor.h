@@ -140,7 +140,7 @@ public:
   /** Check if we have any wildcard characters in the channel I/O configs
    * @param direction Return input or output bus count
    * @return \c true if the bus has a wildcard, meaning it should work on any number of channels */
-  bool HasWildcardBus(ERoute direction) const { return mIOConfigs.Get(0)->ContainsWildcard(direction); } // \todo only supports a single I/O config
+  bool HasWildcardBus(ERoute direction) const { return mIOConfigs.Get(0)->ContainsWildcard(direction); } // TODO: only supports a single I/O config
 
   /** @param direction Whether you want to test inputs or outputs
    * @return Total number of input or output channel buffers (not necessarily connected) */
@@ -173,8 +173,8 @@ public:
   bool HasSidechainInput() const { return MaxNBuses(ERoute::kInput) > 1; }
 
   /** @return The number of channels and the side-chain input \todo this will change */
-  int NSidechainChannels() const { return 1; } // TODO: this needs to be more flexible, based on channel I/O
-
+  int NSidechainChannels() const { return mIOConfigs.Get(0)->GetBusInfo(kInput, 1)->NChans(); } // TODO: only supports a single I/O config
+  
   /** This is called by IPlugVST in order to limit a plug-in to stereo I/O for certain picky hosts \todo may no longer be relevant*/
   void LimitToStereoIO();//TODO: this should be updated
 
