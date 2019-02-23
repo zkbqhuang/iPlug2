@@ -44,6 +44,7 @@
 #include "heapbuf.h"
 #include <stack>
 #include <memory>
+#include <array>
 
 #ifdef FillRect
 #undef FillRect
@@ -813,8 +814,24 @@ public:
   
   /** Get a pointer to the IControl that is currently captured i.e. during dragging
    * @return Pointer to currently captured control */
-  IControl* GetCapturedControl() { return mMouseCapture; }
+//  IControl* GetCapturedControl() { return mMouseCapture; }
 
+  bool ControlIsCaptured(IControl* pControl)
+  {
+    for (int i=0; i<ITouchEvent::kMaxNumPoints; i++)
+    {
+      if(mCaptured[i] == pControl)
+        return true;
+    }
+    
+    return false;
+  }
+  
+  void ClearCapture()
+  {
+    mCaptured.fill(nullptr);
+  }
+  
   /* Get the first control in the control list, the background */
   IControl* GetBackgroundControl() { return GetControl(0);  }
   
@@ -854,22 +871,14 @@ public:
   /***/
   void SetAllControlsClean();
   
-  /** @param x The X coordinate in the graphics context at which the mouse event occurred
-   * @param y The Y coordinate in the graphics context at which the mouse event occurred
-   * @param mod IMouseMod struct contain information about the modifiers held */
-  void OnMouseDown(float x, float y, const IMouseMod& mod);
+  /** */
+  void OnMouseDown(const std::vector<IMouseInfo>& info);
 
-  /** @param x The X coordinate in the graphics context at which the mouse event occurred
-   * @param y The Y coordinate in the graphics context at which the mouse event occurred
-   * @param mod IMouseMod struct contain information about the modifiers held */
-  void OnMouseUp(float x, float y, const IMouseMod& mod);
+  /**  */
+  void OnMouseUp(const std::vector<IMouseInfo>& info);
 
-  /** @param x The X coordinate in the graphics context at which the mouse event occurred
-   * @param y The Y coordinate in the graphics context at which the mouse event occurred
-   * @param dX Delta X value \todo explain
-   * @param dY Delta Y value \todo explain
-   * @param mod IMouseMod struct contain information about the modifiers held */
-  void OnMouseDrag(float x, float y, float dX, float dY, const IMouseMod& mod);
+  /**  */
+  void OnMouseDrag(const std::vector<IMouseInfo>& info);
 
   /** @param x The X coordinate in the graphics context at which the mouse event occurred
    * @param y The Y coordinate in the graphics context at which the mouse event occurred
@@ -954,7 +963,10 @@ public:
   bool CanHandleMouseOver() const { return mHandleMouseOver; }
 
   /** @return An integer representing the control index in IGraphics::mControls which the mouse is over, or -1 if it is not */
-  inline int GetMouseOver() const { return mMouseOverIdx; }
+//  inline int GetMouseOver() const
+//  {
+//    return mMouseOverIdx;
+//  }
 
   /** Get the x, y position in the graphics context of the last mouse down message. Does not get cleared on mouse up etc.
    * @param x Where the X position will be stored
@@ -1103,9 +1115,8 @@ private:
   int mScreenScale = 1; // the scaling of the display that the UI is currently on e.g. 2 for retina
   float mDrawScale = 1.f; // scale deviation from  default width and height i.e stretching the UI by dragging bottom right hand corner
   int mIdleTicks = 0;
-  IControl* mMouseCapture = nullptr;
+  std::array<IControl*, ITouchEvent::kMaxNumPoints> mCaptured {nullptr};
   IControl* mMouseOver = nullptr;
-  int mMouseOverIdx = -1;
   float mMouseDownX = -1.f;
   float mMouseDownY = -1.f;
   float mMinScale;

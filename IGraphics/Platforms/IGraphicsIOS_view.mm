@@ -13,6 +13,7 @@
 #import "IGraphicsIOS_view.h"
 #include "IControl.h"
 #include "IPlugParameter.h"
+#include <vector>
 
 @implementation IGraphicsIOS_View
 
@@ -30,7 +31,7 @@
   self.layer.opaque = YES;
   self.layer.contentsScale = [UIScreen mainScreen].scale;
   
-//  self.multipleTouchEnabled = YES;
+  self.multipleTouchEnabled = YES;
   
   return self;
 }
@@ -55,59 +56,153 @@
   self.metalLayer.drawableSize = drawableSize;
 }
 
-- (void) getTouchXY: (CGPoint) pt x: (float*) pX y: (float*) pY
+//- (void) getTouchXY: (CGPoint) pt x: (float*) pX y: (float*) pY
+//{
+//  if (mGraphics)
+//  {
+//    *pX = pt.x / mGraphics->GetDrawScale();
+//    *pY = pt.y / mGraphics->GetDrawScale();
+//  }
+//}
+
+- (void) OnTouchEvent:(ITouchEvent::ETouchType)type withTouches:(NSSet*)touches withEvent:(UIEvent*)event
 {
-  if (mGraphics)
+  ITouchEvent te;
+  te.type = type;
+  te.time = std::chrono::high_resolution_clock::now();
+  NSEnumerator* pEnumerator = [[event allTouches] objectEnumerator];
+  UITouch* pTouch;
+  
+  while ((pTouch = [pEnumerator nextObject]))
   {
-    *pX = pt.x / mGraphics->GetDrawScale();
-    *pY = pt.y / mGraphics->GetDrawScale();
+    if ((te.numTouches + 1) < ITouchEvent::kMaxNumPoints)
+    {
+      CGPoint pos = [pTouch locationInView:pTouch.view];
+      ITouchEvent::point& pt = te.points[te.numTouches++];
+      pt.identifier = static_cast<void*>(pTouch);
+      pt.x = pos.x;
+      pt.y = pos.y;
+      pt.isChanged = [touches containsObject:pTouch];
+    }
   }
-}
-
-- (void) touchesBegan: (NSSet*) pTouches withEvent: (UIEvent*) pEvent
-{
-  UITouch* pTouch = [pTouches anyObject];
-  CGPoint pt = [pTouch locationInView: self];
-
-  IMouseInfo info;
-  info.ms.L = true;
-  [self getTouchXY:pt x:&info.x y:&info.y];
-  mGraphics->OnMouseDown(info.x, info.y, info.ms);
-}
-
-- (void) touchesMoved: (NSSet*) pTouches withEvent: (UIEvent*) pEvent
-{
-  UITouch* pTouch = [pTouches anyObject];
-
-  CGPoint pt = [pTouch locationInView: self];
-  CGPoint ptPrev = [pTouch previousLocationInView: self];
-
-  IMouseInfo info;
-  [self getTouchXY:pt x:&info.x y:&info.y];
-  float prevX, prevY;
-  [self getTouchXY:ptPrev x:&prevX y:&prevY];
-
-  float dX = info.x - prevX;
-  float dY = info.y - prevY;
   
-  mGraphics->OnMouseDrag(info.x, info.y, dX, dY, info.ms);
-}
+  std::vector<IMouseInfo> list;
 
-- (void) touchesEnded: (NSSet*) pTouches withEvent: (UIEvent*) pEvent
-{
-  UITouch* pTouch = [pTouches anyObject];
+  for (int i=0; i<te.numTouches; i++)
+  {
+    IMouseInfo e;
+    e.ms.L = true;
+    e.x = te.points[i].x / mGraphics->GetDrawScale();
+    e.y = te.points[i].y / mGraphics->GetDrawScale();
+    e.ms.P = i;
+    
+    if(te.points[i].isChanged)
+      list.push_back(e);
+    
+    DBGMSG("%i - %f %f %i\n", i,  e.x, e.y, te.points[i].isChanged);
+  }
 
-  CGPoint pt = [pTouch locationInView: self];
+  if(te.type == ITouchEvent::began)
+    mGraphics->OnMouseDown(list);
   
-  IMouseInfo info;
-  [self getTouchXY:pt x:&info.x y:&info.y];
-  mGraphics->OnMouseUp(info.x, info.y, info.ms);
+  if(te.type == ITouchEvent::ended)
+    mGraphics->OnMouseUp(list);
+  
+  if(te.type == ITouchEvent::moved)
+    mGraphics->OnMouseDrag(list);
+  
+//  iosInputMgrPtr->onITouchEvent(newEvent);
 }
 
-- (void) touchesCancelled: (NSSet*) pTouches withEvent: (UIEvent*) pEvent
+- (void) touchesBegan:(NSSet*)touches withEvent:(UIEvent*)event
 {
-  //  [self pTouchesEnded: pTouches withEvent: event];
+  [self OnTouchEvent:ITouchEvent::began withTouches:touches withEvent:event];
 }
+
+- (void) touchesMoved:(NSSet*)touches withEvent:(UIEvent*)event
+{
+  [self OnTouchEvent:ITouchEvent::moved withTouches:touches withEvent:event];
+}
+
+- (void) touchesEnded:(NSSet*)touches withEvent:(UIEvent*)event
+{
+  [self OnTouchEvent:ITouchEvent::ended withTouches:touches withEvent:event];
+}
+
+- (void) touchesCancelled:(NSSet*)touches withEvent:(UIEvent*)event
+{
+  [self OnTouchEvent:ITouchEvent::cancelled withTouches:touches withEvent:event];
+}
+
+//- (void) touchesBegan: (NSSet*) pTouches withEvent: (UIEvent*) pEvent
+//{
+//  NSArray* pArray = [pTouches allObjects];
+//  std::vector<IMouseInfo> list;
+//
+//  for (int i=0; i<[pTouches count]; i++)
+//  {
+//    UITouch* pTouch = pArray[i];
+//    CGPoint pt = [pTouch locationInView: self];
+//
+//    IMouseInfo e;
+//    e.ms.L = true;
+//    [self getTouchXY:pt x:&e.x y:&e.y];
+//
+//    list.push_back(e);
+//  }
+//
+//  mGraphics->OnMouseDown(list);
+//}
+//
+//- (void) touchesMoved: (NSSet*) pTouches withEvent: (UIEvent*) pEvent
+//{
+//  NSArray* pArray = [pTouches allObjects];
+//  std::vector<IMouseInfo> list;
+//
+//  for (int i=0; i<[pTouches count]; i++)
+//  {
+//    UITouch* pTouch = pArray[i];
+//    CGPoint pt = [pTouch locationInView: self];
+//    CGPoint ptPrev = [pTouch previousLocationInView: self];
+//
+//    IMouseInfo e;
+//    [self getTouchXY:pt x:&e.x y:&e.y];
+//    float prevX, prevY;
+//    [self getTouchXY:ptPrev x:&prevX y:&prevY];
+//
+//    e.dx = e.x - prevX;
+//    e.dy = e.y - prevY;
+//
+//    list.push_back(e);
+//  }
+//
+//  mGraphics->OnMouseDrag(list);
+//}
+//
+//- (void) touchesEnded: (NSSet*) pTouches withEvent: (UIEvent*) pEvent
+//{
+//  NSArray* pArray = [pTouches allObjects];
+//  std::vector<IMouseInfo> list;
+//
+//  for (int i=0; i<[pTouches count]; i++)
+//  {
+//    UITouch* pTouch = pArray[i];
+//    CGPoint pt = [pTouch locationInView: self];
+//    CGPoint ptPrev = [pTouch previousLocationInView: self];
+//
+//    IMouseInfo e;
+//    [self getTouchXY:pt x:&e.x y:&e.y];
+//
+//    list.push_back(e);
+//  }
+//
+//  mGraphics->OnMouseUp(list);
+//}
+//
+//- (void) touchesCancelled: (NSSet*) pTouches withEvent: (UIEvent*) pEvent
+//{
+//  //  [self pTouchesEnded: pTouches withEvent: event];
+//}
 
 - (CAMetalLayer*) metalLayer
 {

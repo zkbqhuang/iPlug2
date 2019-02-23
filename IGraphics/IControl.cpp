@@ -81,9 +81,7 @@ void IControl::SetValueFromDelegate(double value)
   }
 
   //don't update this control from delegate, if this control is being captured (i.e. if host is automating the control, mouse is more important
-  IControl* capturedControl = GetUI()->GetCapturedControl();
-  
-  if (mValue != value && capturedControl != this)
+  if (mValue != value && !GetUI()->ControlIsCaptured(this))
   {
     mValue = value;
     SetDirty(false);

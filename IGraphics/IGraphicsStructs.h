@@ -1049,6 +1049,7 @@ struct IMouseMod
   bool L, R, S, C, A;
   IMouseMod(bool l = false, bool r = false, bool s = false, bool c = false, bool a = false)
     : L(l), R(r), S(s), C(c), A(a) {}
+  char P = 0;
   
   void DBGPrint() { DBGMSG("L: %i, R: %i, S: %i, C: %i,: A: %i\n", L, R, S, C, A); }
 };
@@ -1058,6 +1059,31 @@ struct IMouseInfo
 {
   float x, y;
   IMouseMod ms;
+};
+
+struct ITouchEvent
+{
+  enum ETouchType
+  {
+    began,
+    moved,
+    ended,
+    cancelled,
+    invalid,
+  };
+  
+  ETouchType type = invalid;
+  
+  TimePoint time;
+  int32_t numTouches = 0;
+  static const int32_t kMaxNumPoints = 8;
+  
+  struct point
+  {
+    void* identifier = nullptr;
+    float x, y;
+    bool isChanged = false;
+  } points[kMaxNumPoints];
 };
 
 /** Used to manage a list of rectangular areas and optimize them for drawing to the screen. */
