@@ -45,6 +45,7 @@
 #include <stack>
 #include <memory>
 #include <array>
+#include <map>
 
 #ifdef FillRect
 #undef FillRect
@@ -1084,7 +1085,10 @@ private:
   void Draw(const IRECT& bounds, float scale);
   void DrawControl(IControl* pControl, const IRECT& bounds, float scale);
   
+  
   int GetMouseControlIdx(float x, float y, bool mouseOver = false);
+  
+  IControl* GetControlAtPoint(float x, float y);
   IControl* GetMouseControl(float x, float y, bool capture, bool mouseOver = false);
   
   void StartResizeGesture() { mResizingInProcess = true; };
@@ -1116,6 +1120,8 @@ private:
   float mDrawScale = 1.f; // scale deviation from  default width and height i.e stretching the UI by dragging bottom right hand corner
   int mIdleTicks = 0;
   std::array<IControl*, ITouchEvent::kMaxNumPoints> mCaptured {nullptr};
+  std::map<void*, IControl*> mCapturedMap;
+  std::map<IControl*, int> mCapturedMapCount;
   IControl* mMouseOver = nullptr;
   float mMouseDownX = -1.f;
   float mMouseDownY = -1.f;

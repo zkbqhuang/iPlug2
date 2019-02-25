@@ -1049,7 +1049,10 @@ struct IMouseMod
   bool L, R, S, C, A;
   IMouseMod(bool l = false, bool r = false, bool s = false, bool c = false, bool a = false)
     : L(l), R(r), S(s), C(c), A(a) {}
-  char P = 0;
+  int P = 0;
+  void* identifier = nullptr;
+  bool changed = false;
+  float radius = 1.;
   
   void DBGPrint() { DBGMSG("L: %i, R: %i, S: %i, C: %i,: A: %i\n", L, R, S, C, A); }
 };
@@ -1058,6 +1061,7 @@ struct IMouseMod
 struct IMouseInfo
 {
   float x, y;
+  float dx, dy;
   IMouseMod ms;
 };
 
@@ -1082,6 +1086,8 @@ struct ITouchEvent
   {
     void* identifier = nullptr;
     float x, y;
+    float dx, dy;
+    float radius;
     bool isChanged = false;
   } points[kMaxNumPoints];
 };

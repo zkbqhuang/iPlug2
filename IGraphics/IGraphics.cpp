@@ -36,6 +36,8 @@ typedef IPlugVST3Controller VST3_API_BASE;
 #include "IPopupMenuControl.h"
 #include "ITextEntryControl.h"
 
+#include <vector>
+
 struct SVGHolder
 {
   NSVGimage* mImage = nullptr;
@@ -745,8 +747,38 @@ void IGraphics::OnMouseDown(const std::vector<IMouseInfo>& info)
 //  Trace("IGraphics::OnMouseDown", __LINE__, "x:%0.2f, y:%0.2f, mod:LRSCA: %i%i%i%i%i",
 //        x, y, mod.L, mod.R, mod.S, mod.C, mod.A);
 //
-//  IControl* pControl = GetMouseControl(x, y, true);
+  
+  for(int i=0;i<info.size();i++)
+  {
+    float x = info[i].x;
+    float y = info[i].y;
+    IControl* pControl = GetControlAtPoint(x, y);
+
+    if(pControl)
+    {
+//      if(mCaptured[i] != pControl)
+//      {
+//        mCaptured[i] = pControl;
 //
+        if(mCapturedMap.find(info[i].ms.identifier) == mCapturedMap.end())
+        {
+          if(mCapturedMapCount.find(pControl) == mCapturedMapCount.end())
+          {
+            mCapturedMapCount.insert(std::make_pair(pControl, 0));
+          }
+          
+          IMouseMod newMod = info[i].ms;
+//          newMod.P = mCapturedMapCount[pControl]++;
+          
+          pControl->OnMouseDown(info[i].x, info[i].y, newMod);
+
+          mCapturedMap.insert(std::make_pair(info[i].ms.identifier, pControl));
+        }
+//      }
+    }
+  }
+  
+
 //  mMouseDownX = x;
 //  mMouseDownY = y;
 //
@@ -794,6 +826,24 @@ void IGraphics::OnMouseDown(const std::vector<IMouseInfo>& info)
 
 void IGraphics::OnMouseUp(const std::vector<IMouseInfo>& info)
 {
+  for (int i=0; i<info.size(); i++)
+  {
+    if(info[i].ms.changed)
+    {
+      auto it = mCapturedMap.find(info[i].ms.identifier);
+      
+      IControl* pControl = it->second;
+      
+      IMouseMod newMod = info[i].ms;
+//      newMod.P = mCapturedMapCount[pControl]--;
+      
+      pControl->OnMouseUp(info[i].x, info[i].y, newMod);
+
+      mCapturedMap.erase(it);
+
+    }
+  }
+  
 //  Trace("IGraphics::OnMouseUp", __LINE__, "x:%0.2f, y:%0.2f, mod:LRSCA: %i%i%i%i%i",
 //        x, y, mod.L, mod.R, mod.S, mod.C, mod.A);
 //
@@ -867,6 +917,18 @@ void IGraphics::OnMouseDrag(const std::vector<IMouseInfo>& info)
 //  {
 //    mMouseCapture->OnMouseDrag(x, y, dX, dY, mod);
 //  }
+  
+  for (int i=0; i<info.size(); i++)
+  {
+    auto it = mCapturedMap.find(info[i].ms.identifier);
+    
+    IControl* pControl = it->second;
+    
+    IMouseMod newMod = info[i].ms;
+//    newMod.P = mCapturedMapCount[pControl];
+    
+    pControl->OnMouseDrag(info[i].x, info[i].y, info[i].dx, info[i].dy, newMod);
+  }
 }
 
 bool IGraphics::OnMouseDblClick(float x, float y, const IMouseMod& mod)
@@ -926,6 +988,27 @@ void IGraphics::ReleaseMouseCapture()
 {
   ClearCapture();
   HideMouseCursor(false);
+}
+
+IControl* IGraphics::GetControlAtPoint(float x, float y)
+{
+  IControl* pControl = nullptr;
+  
+  // Search from front to back, return first hit
+  for (auto c = NControls() - 1; c >= 0; --c)
+  {
+    pControl = GetControl(c);
+    
+    if (!pControl->IsHidden())
+    {
+      if (pControl->IsHit(x, y))
+      {
+        return pControl;
+      }
+    }
+  }
+  
+  return pControl;
 }
 
 int IGraphics::GetMouseControlIdx(float x, float y, bool mouseOver)

@@ -82,7 +82,11 @@
       pt.identifier = static_cast<void*>(pTouch);
       pt.x = pos.x;
       pt.y = pos.y;
+      CGPoint posPrev = [pTouch previousLocationInView: self];
+      pt.dx = pos.x - posPrev.x;
+      pt.dy = pos.y - posPrev.y;
       pt.isChanged = [touches containsObject:pTouch];
+      pt.radius = [pTouch majorRadius];
     }
   }
   
@@ -94,10 +98,14 @@
     e.ms.L = true;
     e.x = te.points[i].x / mGraphics->GetDrawScale();
     e.y = te.points[i].y / mGraphics->GetDrawScale();
+    e.dx = te.points[i].dx / mGraphics->GetDrawScale();
+    e.dy = te.points[i].dy / mGraphics->GetDrawScale();
     e.ms.P = i;
+    e.ms.identifier = te.points[i].identifier;
+    e.ms.changed = te.points[i].isChanged;
+    e.ms.radius = te.points[i].radius;
     
-    if(te.points[i].isChanged)
-      list.push_back(e);
+    list.push_back(e);
     
     DBGMSG("%i - %f %f %i\n", i,  e.x, e.y, te.points[i].isChanged);
   }
