@@ -62,23 +62,18 @@ inline agg::comp_op_e AGGBlendMode(const IBlend* pBlend)
   
   switch (pBlend->mMethod)
   {
-    case kBlendNone:            return agg::comp_op_src_over;
-    case kBlendClobber:         return agg::comp_op_src;
-          
+    case kBlendDefault:         // fall through
+    case kBlendClobber:         // fall through
     case kBlendSourceOver:      return agg::comp_op_src_over;
     case kBlendSourceIn:        return agg::comp_op_src_in;
     case kBlendSourceOut:       return agg::comp_op_src_out;
     case kBlendSourceAtop:      return agg::comp_op_src_atop;
-          
     case kBlendDestOver:        return agg::comp_op_dst_over;
     case kBlendDestIn:          return agg::comp_op_dst_in;
     case kBlendDestOut:         return agg::comp_op_dst_out;
     case kBlendDestAtop:        return agg::comp_op_dst_atop;
-   
-    case kBlendXOR:             return agg::comp_op_xor;
-
     case kBlendAdd:             return agg::comp_op_plus;
-    case kBlendColorDodge:      return agg::comp_op_color_dodge;
+    case kBlendXOR:             return agg::comp_op_xor;
   }
 }
 
@@ -533,7 +528,7 @@ APIBitmap* IGraphicsAGG::ScaleAPIBitmap(const APIBitmap* pBitmap, int scale)
 APIBitmap* IGraphicsAGG::CreateAPIBitmap(int width, int height)
 {
   const double scale = GetBackingPixelScale();
-  return new AGGBitmap(CreatePixmap(std::round(width * scale), std::round(height * scale)), GetScreenScale(), GetDrawScale(), true);
+  return new AGGBitmap(CreatePixmap(std::ceil(width * scale), std::ceil(height * scale)), GetScreenScale(), GetDrawScale(), true);
 }
 
 bool IGraphicsAGG::BitmapExtSupported(const char* ext)

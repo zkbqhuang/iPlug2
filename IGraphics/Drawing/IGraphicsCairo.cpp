@@ -92,23 +92,18 @@ inline cairo_operator_t CairoBlendMode(const IBlend* pBlend)
   }
   switch (pBlend->mMethod)
   {
-    case kBlendNone:        return CAIRO_OPERATOR_OVER;
-    case kBlendClobber:     return CAIRO_OPERATOR_SOURCE;
-          
-    case kBlendSourceOver:  return CAIRO_OPERATOR_OVER;
-    case kBlendSourceIn:    return CAIRO_OPERATOR_IN;
-    case kBlendSourceOut:   return CAIRO_OPERATOR_OUT;
-    case kBlendSourceAtop:  return CAIRO_OPERATOR_ATOP;
-          
-    case kBlendDestOver:    return CAIRO_OPERATOR_DEST_OVER;
-    case kBlendDestIn:      return CAIRO_OPERATOR_DEST_IN;
-    case kBlendDestOut:     return CAIRO_OPERATOR_DEST_OUT;
-    case kBlendDestAtop:    return CAIRO_OPERATOR_DEST_ATOP;
-          
-    case kBlendXOR:         return CAIRO_OPERATOR_XOR;
-        
-    case kBlendAdd:         return CAIRO_OPERATOR_ADD;
-    case kBlendColorDodge:  return CAIRO_OPERATOR_COLOR_DODGE;
+    case kBlendDefault:         // fall through
+    case kBlendClobber:         // fall through
+    case kBlendSourceOver:      return CAIRO_OPERATOR_OVER;
+    case kBlendSourceIn:        return CAIRO_OPERATOR_IN;
+    case kBlendSourceOut:       return CAIRO_OPERATOR_OUT;
+    case kBlendSourceAtop:      return CAIRO_OPERATOR_ATOP;
+    case kBlendDestOver:        return CAIRO_OPERATOR_DEST_OVER;
+    case kBlendDestIn:          return CAIRO_OPERATOR_DEST_IN;
+    case kBlendDestOut:         return CAIRO_OPERATOR_DEST_OUT;
+    case kBlendDestAtop:        return CAIRO_OPERATOR_DEST_ATOP;
+    case kBlendAdd:             return CAIRO_OPERATOR_ADD;
+    case kBlendXOR:             return CAIRO_OPERATOR_XOR;
   }
 }
 
@@ -199,7 +194,7 @@ APIBitmap* IGraphicsCairo::ScaleAPIBitmap(const APIBitmap* pBitmap, int scale)
 APIBitmap* IGraphicsCairo::CreateAPIBitmap(int width, int height)
 {
   const double scale = GetBackingPixelScale();
-  return new CairoBitmap(mSurface, std::round(width * scale), std::round(height * scale), GetScreenScale(), GetDrawScale());
+  return new CairoBitmap(mSurface, std::ceil(width * scale), std::ceil(height * scale), GetScreenScale(), GetDrawScale());
 }
 
 bool IGraphicsCairo::BitmapExtSupported(const char* ext)
@@ -267,7 +262,7 @@ void IGraphicsCairo::ApplyShadowMask(ILayerPtr& layer, RawBitmapData& mask, cons
       cairo_fill(pContext);
     }
     
-    IBlend blend(kBlendNone, shadow.mOpacity);
+    IBlend blend(kBlendDefault, shadow.mOpacity);
     cairo_translate(pContext, -layer->Bounds().L, -layer->Bounds().T);
     SetCairoSourcePattern(pContext, shadow.mPattern, &blend);
     cairo_identity_matrix(pContext);
