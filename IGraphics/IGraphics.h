@@ -1121,8 +1121,6 @@ private:
   int mWidth;
   int mHeight;
   int mFPS;
-  int mScreenScale = 1; // the scaling of the display that the UI is currently on e.g. 2 for retina
-  float mDrawScale = 1.f; // scale deviation from  default width and height i.e stretching the UI by dragging bottom right hand corner
   int mIdleTicks = 0;
   std::array<IControl*, ITouchEvent::kMaxNumPoints> mCaptured {nullptr};
   std::map<void*, IControl*> mCapturedMap;
@@ -1150,7 +1148,9 @@ private:
 protected:
   friend class IGraphicsLiveEdit;
   friend class ICornerResizerControl;
-  
+
+  int mScreenScale = 1; // the scaling of the display that the UI is currently on e.g. 2 for retina
+  float mDrawScale = 1.f; // scale deviation from  default width and height i.e stretching the UI by dragging bottom right hand corner
   std::stack<ILayer*> mLayers;
 };
 

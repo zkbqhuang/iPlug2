@@ -37,8 +37,8 @@ static double sFPS = 0.0;
 inline IMouseInfo IGraphicsWin::GetMouseInfo(LPARAM lParam, WPARAM wParam)
 {
   IMouseInfo info;
-  info.x = mCursorX = GET_X_LPARAM(lParam) / GetDrawScale();
-  info.y = mCursorY = GET_Y_LPARAM(lParam) / GetDrawScale();
+  info.x = mCursorX = GET_X_LPARAM(lParam) / (GetDrawScale() * GetScreenScale());
+  info.y = mCursorY = GET_Y_LPARAM(lParam) / (GetDrawScale() * GetScreenScale());
   info.ms = IMouseMod((wParam & MK_LBUTTON), (wParam & MK_RBUTTON), (wParam & MK_SHIFT), (wParam & MK_CONTROL),
 #ifdef AAX_API
     GetAsyncKeyState(VK_MENU) < 0
@@ -114,6 +114,9 @@ LRESULT CALLBACK IGraphicsWin::WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARA
   
   switch (msg)
   {
+    case WM_DPICHANGED:
+
+      return 0;
     case WM_TIMER:
     {
       if (wParam == IPLUG_TIMER_ID)
@@ -175,7 +178,7 @@ LRESULT CALLBACK IGraphicsWin::WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARA
           for (int i = 0; i < rects.Size(); i++)
           {
             IRECT dirtyR = rects.Get(i);
-            dirtyR.Scale(pGraphics->GetDrawScale());
+            dirtyR.Scale(pGraphics->GetDrawScale() * pGraphics->GetScreenScale());
             dirtyR.PixelAlign();
             RECT r = { (LONG)dirtyR.L, (LONG)dirtyR.T, (LONG)dirtyR.R, (LONG)dirtyR.B };
 
@@ -185,7 +188,7 @@ LRESULT CALLBACK IGraphicsWin::WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARA
           if (pGraphics->mParamEditWnd)
           {
             IRECT notDirtyR = pGraphics->mEdControl->GetRECT();
-            notDirtyR.Scale(pGraphics->GetDrawScale());
+            notDirtyR.Scale(pGraphics->GetDrawScale() * pGraphics->GetScreenScale());
             notDirtyR.PixelAlign();
             RECT r2 = { (LONG) notDirtyR.L, (LONG) notDirtyR.T, (LONG) notDirtyR.R, (LONG) notDirtyR.B };
             ValidateRect(hWnd, &r2); // make sure we dont redraw the edit box area
@@ -297,7 +300,7 @@ LRESULT CALLBACK IGraphicsWin::WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARA
       {
         IMouseInfo info = pGraphics->GetMouseInfo(lParam, wParam);
         float d = GET_WHEEL_DELTA_WPARAM(wParam) / WHEEL_DELTA;
-        float scale = pGraphics->GetDrawScale();
+        float scale = pGraphics->GetDrawScale() * pGraphics->GetScreenScale();
         RECT r;
         GetWindowRect(hWnd, &r);
         pGraphics->OnMouseWheel(info.x - (r.left / scale), info.y - (r.top / scale), info.ms, d);
@@ -348,7 +351,7 @@ LRESULT CALLBACK IGraphicsWin::WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARA
     {
       auto addDrawRect = [pGraphics](IRECTList& rects, RECT r) {
         IRECT ir(r.left, r.top, r.right, r.bottom);
-        ir.Scale(1.f / pGraphics->GetDrawScale());
+        ir.Scale(1.f / (pGraphics->GetDrawScale() * pGraphics->GetScreenScale()));
         ir.PixelAlign();
         rects.Add(ir);
       };
@@ -590,7 +593,7 @@ void IGraphicsWin::PlatformResize()
     HWND pParent = 0, pGrandparent = 0;
     int dlgW = 0, dlgH = 0, parentW = 0, parentH = 0, grandparentW = 0, grandparentH = 0;
     GetWindowSize(mPlugWnd, &dlgW, &dlgH);
-    int dw = WindowWidth() - dlgW, dh = WindowHeight() - dlgH;
+    int dw = (WindowWidth() * GetScreenScale()) - dlgW, dh = (WindowHeight()* GetScreenScale()) - dlgH;
       
     if (IsChildWindow(mPlugWnd))
     {
@@ -619,7 +622,7 @@ void IGraphicsWin::PlatformResize()
     }
 #endif
 
-    RECT r = { 0, 0, WindowWidth(), WindowHeight() };
+    RECT r = { 0, 0, WindowWidth() * GetScreenScale(), WindowHeight() * GetScreenScale() };
     InvalidateRect(mPlugWnd, &r, FALSE);
   }
 }
@@ -723,7 +726,6 @@ bool IGraphicsWin::MouseCursorIsLocked()
 #ifdef IGRAPHICS_GL
 void IGraphicsWin::CreateGLContext()
 {
-
   PIXELFORMATDESCRIPTOR pfd =
   {
     sizeof(PIXELFORMATDESCRIPTOR),
@@ -787,10 +789,34 @@ int IGraphicsWin::ShowMessageBox(const char* text, const char* caption, EMessage
   return MessageBox(GetMainWnd(), text, caption, (int) type);
 }
 
+static double GetScaleForWindow(HWND hWnd)
+{
+  double scale = 1.;
+
+  static UINT (WINAPI *__GetDpiForWindow)(HWND);
+
+  if (!__GetDpiForWindow)
+  {
+    HINSTANCE h = LoadLibrary("user32.dll");
+    if (h) *(void **)&__GetDpiForWindow = GetProcAddress(h,"GetDpiForWindow");
+    if (!__GetDpiForWindow)
+      *(void **)&__GetDpiForWindow = (void*)(INT_PTR)1;
+  }
+  if (hWnd && (UINT_PTR)__GetDpiForWindow > (UINT_PTR)1)
+  {
+    int dpi = __GetDpiForWindow(hWnd);
+    if (dpi != 96)
+      scale = static_cast<double>(dpi / USER_DEFAULT_SCREEN_DPI);
+  }
+
+  return scale;
+}
 void* IGraphicsWin::OpenWindow(void* pParent)
 {
-  int x = 0, y = 0, w = WindowWidth(), h = WindowHeight();
   mParentWnd = (HWND) pParent;
+  mScreenScale = GetScaleForWindow(mParentWnd);
+
+  int x = 0, y = 0, w = WindowWidth() * GetScreenScale(), h = WindowHeight() * GetScreenScale();
 
   if (mPlugWnd)
   {
@@ -823,7 +849,7 @@ void* IGraphicsWin::OpenWindow(void* pParent)
 
   OnViewInitialized((void*) dc);
 
-  SetScreenScale(1); // CHECK!
+  SetScreenScale(mScreenScale); // actually resizes draw contexts
 
   GetDelegate()->LayoutUI(this);
 
@@ -1129,7 +1155,7 @@ IPopupMenu* IGraphicsWin::CreatePlatformPopupMenu(IPopupMenu& menu, const IRECT&
       }
       DestroyMenu(hMenu);
 
-      RECT r = { 0, 0, WindowWidth(), WindowHeight() };
+      RECT r = { 0, 0, WindowWidth() * GetScreenScale(), WindowHeight() * GetScreenScale() };
       InvalidateRect(mPlugWnd, &r, FALSE);
     }
 
