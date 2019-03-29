@@ -45,6 +45,7 @@
 #include <stack>
 #include <memory>
 #include <array>
+#include <vector>
 #include <map>
 
 #ifdef FillRect
@@ -988,6 +989,8 @@ public:
   /**  Set by the platform class if the mouse input is coming from a tablet/stylus
    * @param tablet, \c true means input is from a tablet */
   void SetTabletInput(bool tablet) { mTabletInput = tablet; }
+
+  void SetSupportsMultiTouch(bool mt) { mSupportsMultiTouch = mt;  }
   
   EUIResizerMode GetResizerMode() const { return mGUISizeMode; }
   
@@ -1142,6 +1145,7 @@ private:
   bool mShowAreaDrawn = false;
   bool mResizingInProcess = false;
   bool mLayoutOnResize = false;
+  bool mSupportsMultiTouch = false;
   EUIResizerMode mGUISizeMode = EUIResizerMode::kUIResizerScale;
   double mPrevTimestamp = 0.;
   std::function<bool(const IKeyPress& key)> mKeyHandlerFunc = nullptr;

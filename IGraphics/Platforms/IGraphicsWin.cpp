@@ -111,11 +111,18 @@ LRESULT CALLBACK IGraphicsWin::WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARA
   }
 
   pGraphics->CheckTabletInput(msg);
+
+  auto IsTouchEvent = []() {
+    const LONG_PTR c_SIGNATURE_MASK = 0xFFFFFF00;
+    const LONG_PTR c_MOUSEEVENTF_FROMTOUCH = 0xFF515700;
+    LONG_PTR extraInfo = GetMessageExtraInfo();
+    return ((extraInfo & c_SIGNATURE_MASK) == c_MOUSEEVENTF_FROMTOUCH);
+  };
   
   switch (msg)
   {
     case WM_DPICHANGED:
-
+      //TODO:?
       return 0;
     case WM_TIMER:
     {
@@ -208,6 +215,9 @@ LRESULT CALLBACK IGraphicsWin::WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARA
     case WM_LBUTTONDOWN:
     case WM_MBUTTONDOWN:
     {
+      if (IsTouchEvent())
+        return 0;
+
       pGraphics->HideTooltip();
       if (pGraphics->mParamEditWnd)
       {
@@ -216,8 +226,9 @@ LRESULT CALLBACK IGraphicsWin::WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARA
       }
       SetFocus(hWnd); // Added to get keyboard focus again when user clicks in window
       SetCapture(hWnd);
-      IMouseInfo info = pGraphics->GetMouseInfo(lParam, wParam);
-      pGraphics->OnMouseDown(info.x, info.y, info.ms);
+      std::vector<IMouseInfo> list;
+      list.push_back(pGraphics->GetMouseInfo(lParam, wParam));
+      pGraphics->OnMouseDown(list);
       return 0;
     }
     case WM_SETCURSOR:
@@ -227,6 +238,9 @@ LRESULT CALLBACK IGraphicsWin::WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARA
     }
     case WM_MOUSEMOVE:
     {
+      if (IsTouchEvent())
+        return 0;
+
       if (!(wParam & (MK_LBUTTON | MK_RBUTTON)))
       {
         IMouseInfo info = pGraphics->GetMouseInfo(lParam, wParam);
@@ -250,10 +264,13 @@ LRESULT CALLBACK IGraphicsWin::WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARA
       else if (GetCapture() == hWnd && !pGraphics->mParamEditWnd)
       {
         float dX, dY;
-        IMouseInfo info = pGraphics->GetMouseInfoDeltas(dX, dY, lParam, wParam);
+
+        std::vector<IMouseInfo> list;
+        list.push_back(pGraphics->GetMouseInfoDeltas(dX, dY, lParam, wParam));
+
         if (dX || dY)
         {
-          pGraphics->OnMouseDrag(info.x, info.y, dX, dY, info.ms);
+          pGraphics->OnMouseDrag(list);
           if (pGraphics->MouseCursorIsLocked())
             pGraphics->MoveMouseCursor(pGraphics->mHiddenCursorX, pGraphics->mHiddenCursorY);
         }
@@ -276,8 +293,9 @@ LRESULT CALLBACK IGraphicsWin::WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARA
     case WM_RBUTTONUP:
     {
       ReleaseCapture();
-      IMouseInfo info = pGraphics->GetMouseInfo(lParam, wParam);
-      pGraphics->OnMouseUp(info.x, info.y, info.ms);
+      std::vector<IMouseInfo> list;
+      list.push_back(pGraphics->GetMouseInfo(lParam, wParam));
+      pGraphics->OnMouseUp(list);
       return 0;
     }
     case WM_LBUTTONDBLCLK:
@@ -434,6 +452,59 @@ LRESULT CALLBACK IGraphicsWin::WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARA
     }
     case WM_KILLFOCUS:
     {
+      return 0;
+    }
+    case WM_TOUCH:
+    {
+      UINT nTouches = LOWORD(wParam);
+
+      if (nTouches > 0)
+      {
+        PTOUCHINPUT pTouchInput = new TOUCHINPUT[nTouches];
+        HTOUCHINPUT hTouchInput = (HTOUCHINPUT) lParam;
+        std::vector<IMouseInfo> list;
+
+        GetTouchInputInfo(hTouchInput, nTouches, pTouchInput, sizeof(TOUCHINPUT));
+
+        for (int i = 0; i < nTouches; i++)
+        {
+          TOUCHINPUT ti = pTouchInput[i];
+
+          POINT pt;
+          pt.x = TOUCH_COORD_TO_PIXEL(ti.x);
+          pt.y = TOUCH_COORD_TO_PIXEL(ti.y);
+          ScreenToClient(pGraphics->mPlugWnd, &pt);
+
+          int	w = TOUCH_COORD_TO_PIXEL(ti.cxContact);
+          int h = TOUCH_COORD_TO_PIXEL(ti.cyContact);
+
+          IMouseInfo e;
+          e.x = pt.x;
+          e.y = pt.y;
+          e.ms.radius = w;
+          e.ms.P = i;
+
+          list.push_back(e);
+
+          if (ti.dwFlags & TOUCHEVENTF_DOWN)
+          {
+            pGraphics->OnMouseDown(list);
+          }
+          else if (ti.dwFlags & TOUCHEVENTF_UP)
+          {
+            pGraphics->OnMouseUp(list);
+          }
+          else if (ti.dwFlags & TOUCHEVENTF_MOVE)
+          {
+            pGraphics->OnMouseDrag(list);
+          }
+        }
+
+        delete[] pTouchInput;
+        pTouchInput = NULL;
+
+        CloseTouchInputHandle(hTouchInput);
+      }
       return 0;
     }
   }
@@ -838,6 +909,12 @@ void* IGraphicsWin::OpenWindow(void* pParent)
 
   sFPS = FPS();
   mPlugWnd = CreateWindow(wndClassName, "IPlug", WS_CHILD | WS_VISIBLE, x, y, w, h, mParentWnd, 0, mHInstance, this);
+
+  if (GetSystemMetrics(SM_DIGITIZER) & NID_MULTI_INPUT)
+  {
+    RegisterTouchWindow(mPlugWnd, 0);
+    SetSupportsMultiTouch(true);
+  }
 
   HDC dc = GetDC(mPlugWnd);
   SetPlatformContext(dc);

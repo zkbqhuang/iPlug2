@@ -62,7 +62,11 @@ IGraphicsTest::IGraphicsTest(IPlugInstanceInfo instanceInfo)
     IBitmap top = pGraphics->LoadBitmap(TOP_FN);
 
     IRECT bounds = pGraphics->GetBounds();
-    
+
+#if 0
+    pGraphics->AttachControl(new TestMTControl(bounds.FracRectHorizontal(0.5)));
+    pGraphics->AttachControl(new TestMTControl(bounds.FracRectHorizontal(0.5, true)));
+#else
     int cellIdx = 0;
     
     auto nextCell = [&](){
@@ -148,8 +152,8 @@ IGraphicsTest::IGraphicsTest(IPlugInstanceInfo instanceInfo)
     pGraphics->AttachControl(new ITextControl(nextCell(), "Three!", {24, COLOR_RED, "Roboto-Regular", IText::kStyleNormal, IText::kAlignFar, IText::kVAlignBottom}));
     pGraphics->AttachControl(new ITextControl(nextCell(), "Four!", {40, COLOR_ORANGE, "Roboto-Regular", IText::kStyleNormal, IText::kAlignCenter, IText::kVAlignBottom}));
 #endif
+#endif
   };
-  
 #endif
 }
 

@@ -32,3 +32,4 @@
 #include "TestKeyboardControl.h"
 #include "TestRotatingMaskControl.h"
 #include "TestShadowGradientControl.h"
+#include "TestMultiTouchControl.h"
