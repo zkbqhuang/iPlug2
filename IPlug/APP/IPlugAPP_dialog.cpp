@@ -508,6 +508,7 @@ void ClientResize(HWND hWnd, int nWidth, int nHeight)
 
   double scale = 1.;
   
+#ifdef OS_WIN
   if (!__GetDpiForWindow)
   {
     HINSTANCE h = LoadLibrary("user32.dll");
@@ -515,13 +516,15 @@ void ClientResize(HWND hWnd, int nWidth, int nHeight)
     if (!__GetDpiForWindow)
       *(void **)&__GetDpiForWindow = (void*)(INT_PTR)1;
   }
+  
   if (hWnd && (UINT_PTR)__GetDpiForWindow > (UINT_PTR)1)
   {
     int dpi = __GetDpiForWindow(hWnd);
     if (dpi != 96)
       scale = static_cast<double>(dpi / USER_DEFAULT_SCREEN_DPI);
   }
-
+#endif
+  
   nWidth *= scale;
   nHeight *= scale;
 
