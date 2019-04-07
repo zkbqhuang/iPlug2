@@ -62,7 +62,13 @@ enum NVGsolidity {
 	NVG_SOLID = 1,			// CCW
 	NVG_HOLE = 2,			// CW
 };
-
+	
+enum NVGfillWinding {
+	NVG_USERWINDING = 1,    // Winding using subpath windings
+    NVG_NONZERO = 2,        // Winding using the nonzero rule
+	NVG_EVENODD = 3,        // Winding using even odd
+};
+	
 enum NVGlineCap {
 	NVG_BUTT,
 	NVG_ROUND,
@@ -252,7 +258,10 @@ void nvgFillColor(NVGcontext* ctx, NVGcolor color);
 
 // Sets current fill style to a paint, which can be a one of the gradients or a pattern.
 void nvgFillPaint(NVGcontext* ctx, NVGpaint paint);
-
+	
+// Sets the current fill winding, see NVGfillWinding.
+void nvgFillWinding(NVGcontext* ctx, int type);
+	
 // Sets the miter limit of the stroke style.
 // Miter limit controls when a sharp corner is beveled.
 void nvgMiterLimit(NVGcontext* ctx, float limit);

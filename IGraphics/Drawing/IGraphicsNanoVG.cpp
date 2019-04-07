@@ -674,7 +674,8 @@ void IGraphicsNanoVG::PathStroke(const IPattern& pattern, float thickness, const
     nvgStrokeColor(mVG, NanoVGColor(pattern.GetStop(0).mColor, pBlend));
   else
     nvgStrokePaint(mVG, NanoVGPaint(mVG, pattern, pBlend));
-  
+	
+  nvgFillWinding(mVG, NVG_USERWINDING);
   nvgPathWinding(mVG, NVG_CCW);
   NanoVGSetBlendMode(mVG, pBlend);
   nvgStroke(mVG);
@@ -686,8 +687,8 @@ void IGraphicsNanoVG::PathStroke(const IPattern& pattern, float thickness, const
 
 void IGraphicsNanoVG::PathFill(const IPattern& pattern, const IFillOptions& options, const IBlend* pBlend)
 {
-  nvgPathWinding(mVG, options.mFillRule == kFillWinding ? NVG_CCW : NVG_CW);
-  
+  nvgFillWinding(mVG, options.mFillRule == kFillWinding ? NVG_NONZERO : NVG_EVENODD);
+
   if (pattern.mType == kSolidPattern)
     nvgFillColor(mVG, NanoVGColor(pattern.GetStop(0).mColor, pBlend));
   else

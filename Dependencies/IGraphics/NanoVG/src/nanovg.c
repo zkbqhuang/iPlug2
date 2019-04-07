@@ -83,6 +83,7 @@ struct NVGstate {
 	float fontBlur;
 	int textAlign;
 	int fontId;
+	int fillWinding;
 };
 typedef struct NVGstate NVGstate;
 
@@ -663,6 +664,7 @@ void nvgReset(NVGcontext* ctx)
 	state->fontBlur = 0.0f;
 	state->textAlign = NVG_ALIGN_LEFT | NVG_ALIGN_BASELINE;
 	state->fontId = 0;
+	state->fillWinding = NVG_USERWINDING;
 }
 
 // State setting
@@ -786,6 +788,12 @@ void nvgFillPaint(NVGcontext* ctx, NVGpaint paint)
 	NVGstate* state = nvg__getState(ctx);
 	state->fill = paint;
 	nvgTransformMultiply(state->fill.xform, state->xform);
+}
+
+void nvgFillWinding(NVGcontext* ctx, int type)
+{
+	NVGstate* state = nvg__getState(ctx);
+	state->fillWinding = type;
 }
 
 int nvgCreateImage(NVGcontext* ctx, const char* filename, int imageFlags)
@@ -1318,16 +1326,78 @@ static void nvg__tesselateBezier(NVGcontext* ctx,
 	nvg__tesselateBezier(ctx, x1234,y1234, x234,y234, x34,y34, x4,y4, level+1, type);
 }
 
+static float nvg__getLineCrossing(float p0x, float p0y, float p1x, float p1y, float p2x, float p2y, float p3x, float p3y)
+{
+	float dx = p1x - p0x;
+	float dy = p1y - p0y;
+	float m = dx * (p3y - p2y) - dy * (p3x - p2x);
+	
+	if (fabs(m) < 1e-8)
+		return -1.f;
+	
+	return -(dx * (p2y - p0y) - dy * (p2x - p0x)) / m;
+}
+
+static void nvg__pathsWinding(NVGcontext* ctx, int type)
+{
+	NVGpathCache* cache = ctx->cache;
+	int i, j, k;
+	
+	if (type != NVG_NONZERO && type != NVG_EVENODD)
+		return;
+	
+	for (i = 0; i < cache->npaths; i++) {
+		NVGpath* path = &cache->paths[i];
+		NVGpoint *pts = &cache->points[path->first];
+		int ncross = 0;
+		float p0x = pts[0].x;
+		float p0y = pts[0].y;
+		float p1x = pts[0].x;
+	 	float p1y = pts[0].y;
+
+		for (j = 1; j < path->count; j++) {
+			p1x = p1x > pts[j].x ? pts[j].x : p1x;
+			p1y = p1y > pts[j].y ? pts[j].y : p1y;
+		}
+		
+		p1x -= 1.0f;
+		p1y -= 1.0f;
+		
+		for (j = 0; j < cache->npaths; j++) {
+			NVGpath* path2 = &cache->paths[j];
+			NVGpoint *pts2 = &cache->points[path2->first];
+
+			if (i == j || path2->count < 4)
+				continue;
+			
+			for (k = 1; k < path2->count + 1; k++) {
+				float p2x = pts2[k - 1].x;
+				float p2y = pts2[k - 1].y;
+				float p3x = (k < path2->count) ? pts2[k].x : pts2[0].x;
+				float p3y = (k < path2->count) ? pts2[k].y : pts2[0].y;
+				float x0 = nvg__getLineCrossing(p0x, p0y, p1x, p1y, p2x, p2y, p3x, p3y);
+				float x1 = nvg__getLineCrossing(p2x, p2y, p3x, p3y, p0x, p0y, p1x, p1y);
+				
+				if (0.0 <= x0 && x0 < 1.0 && 0.0 <= x1)
+					ncross++;
+			}
+		}
+		
+		path->winding = ((type == NVG_EVENODD) ? (ncross % 2) : ncross) ? NVG_CCW : NVG_CW;
+	}
+}
+
 static void nvg__flattenPaths(NVGcontext* ctx)
 {
 	NVGpathCache* cache = ctx->cache;
-//	NVGstate* state = nvg__getState(ctx);
+	NVGstate* state = nvg__getState(ctx);
 	NVGpoint* last;
 	NVGpoint* p0;
 	NVGpoint* p1;
 	NVGpoint* pts;
 	NVGpath* path;
 	int i, j;
+    int windingType = state->fillWinding;
 	float* cp1;
 	float* cp2;
 	float* p;
@@ -1375,6 +1445,8 @@ static void nvg__flattenPaths(NVGcontext* ctx)
 		}
 	}
 
+	nvg__pathsWinding(ctx, windingType);
+	
 	cache->bounds[0] = cache->bounds[1] = 1e6f;
 	cache->bounds[2] = cache->bounds[3] = -1e6f;
 
@@ -1393,7 +1465,7 @@ static void nvg__flattenPaths(NVGcontext* ctx)
 		}
 
 		// Enforce winding.
-		if (path->count > 2) {
+		if (windingType != NVG_NONZERO && path->count > 2) {
 			area = nvg__polyArea(pts, path->count);
 			if (path->winding == NVG_CCW && area < 0.0f)
 				nvg__polyReverse(pts, path->count);
