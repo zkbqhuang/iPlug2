@@ -7,8 +7,8 @@ IPlugInstrument::IPlugInstrument(IPlugInstanceInfo instanceInfo)
 {
   GetParam(kParamGain)->InitDouble("Gain", 100., 0., 100.0, 0.01, "%");
   GetParam(kParamNoteGlideTime)->InitSeconds("Note Glide Time", 0.1, 2.);
-  GetParam(kParamAttack)->InitDouble("Attack", 10., 1., 1000., 0.1, "ms", IParam::kFlagsNone, "ADSR", new IParam::ShapePowCurve(3.));
-  GetParam(kParamDecay)->InitDouble("Decay", 10., 1., 1000., 0.1, "ms", IParam::kFlagsNone, "ADSR", new IParam::ShapePowCurve(3.));
+  GetParam(kParamAttack)->InitDouble("Attack", 10., 1., 1000., 0.1, "ms", IParam::kFlagsNone, "ADSR", IParam::ShapePowCurve(3.));
+  GetParam(kParamDecay)->InitDouble("Decay", 10., 1., 1000., 0.1, "ms", IParam::kFlagsNone, "ADSR", IParam::ShapePowCurve(3.));
   GetParam(kParamSustain)->InitDouble("Sustain", 50., 0., 100., 1, "%", IParam::kFlagsNone, "ADSR");
   GetParam(kParamRelease)->InitDouble("Release", 10., 1., 1000., 0.1, "ms", IParam::kFlagsNone, "ADSR");
   
@@ -22,7 +22,7 @@ IPlugInstrument::IPlugInstrument(IPlugInstanceInfo instanceInfo)
     pGraphics->AttachPanelBackground(COLOR_GRAY);
     pGraphics->HandleMouseOver(true);
 //    pGraphics->EnableLiveEdit(true);
-    pGraphics->LoadFont(ROBOTTO_FN);
+    pGraphics->LoadFont("Roboto-Regular", ROBOTTO_FN);
     const IRECT b = pGraphics->GetBounds();
     pGraphics->AttachControl(new IVKeyboardControl(IRECT(10, 335, PLUG_WIDTH-10, PLUG_HEIGHT-10)));
     pGraphics->AttachControl(new IVMultiSliderControl<8>(b.GetGridCell(0, 2, 2).GetPadded(-30)));
