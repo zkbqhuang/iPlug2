@@ -8,16 +8,13 @@
  ==============================================================================
 */
 
-#ifndef NO_IGRAPHICS
-
 #import <Cocoa/Cocoa.h>
 //#import <WebKit/WebKit.h>
 
 #include "IGraphicsMac.h"
 
 #if defined IGRAPHICS_GL
-#error IGRAPHICS_GL MACOS NOT IMPLEMENTED
-//#include <OpenGL/gl.h>
+#import <QuartzCore/QuartzCore.h>
 #endif
 
 inline NSRect ToNSRect(IGraphics* pGraphics, const IRECT& bounds)
@@ -40,10 +37,8 @@ inline IRECT ToIRECT(IGraphics* pGraphics, const NSRect* pR)
 
 inline NSColor* ToNSColor(const IColor& c)
 {
-  return [NSColor colorWithCalibratedRed:(double) c.R / 255.0 green:(double) c.G / 255.0 blue:(double) c.B / 255.0 alpha:(double) c.A / 255.0];
+  return [NSColor colorWithDeviceRed:(double) c.R / 255.0 green:(double) c.G / 255.0 blue:(double) c.B / 255.0 alpha:(double) c.A / 255.0];
 }
-
-NSString* ToNSString(const char* cStr);
 
 // based on code by Scott Gruby http://blog.gruby.com/2008/03/30/filtering-nstextfield-take-2/
 @interface IGRAPHICS_FORMATTER : NSFormatter
@@ -83,18 +78,25 @@ NSString* ToNSString(const char* cStr);
 - (NSMenuItem*) menuItem;
 @end
 
+@interface IGRAPHICS_TEXTFIELD : NSTextField
+{
+}
+- (bool) becomeFirstResponder;
+@end
+
 @interface IGRAPHICS_VIEW : NSView <NSTextFieldDelegate/*, WKScriptMessageHandler*/>
 {
+  NSTrackingArea* mTrackingArea;
   NSTimer* mTimer;
-  NSTextField* mTextFieldView;
+  IGRAPHICS_TEXTFIELD* mTextFieldView;
   NSCursor* mMoveCursor;
 //  WKWebView* mWebView;
   IControl* mEdControl; // the control linked to the open text edit
   float mPrevX, mPrevY;
+  IRECTList mDirtyRects;
 @public
   IGraphicsMac* mGraphics; // OBJC instance variables have to be pointers
 }
-//- (id) init;
 - (id) initWithIGraphics: (IGraphicsMac*) pGraphics;
 - (BOOL) isOpaque;
 - (BOOL) acceptsFirstResponder;
@@ -102,12 +104,16 @@ NSString* ToNSString(const char* cStr);
 - (void) viewDidMoveToWindow;
 - (void) viewDidChangeBackingProperties:(NSNotification *) notification;
 - (void) drawRect: (NSRect) bounds;
+- (void) render;
 - (void) onTimer: (NSTimer*) pTimer;
 - (void) killTimer;
 //mouse
 - (void) getMouseXY: (NSEvent*) pEvent x: (float&) pX y: (float&) pY;
 - (IMouseInfo) getMouseLeft: (NSEvent*) pEvent;
 - (IMouseInfo) getMouseRight: (NSEvent*) pEvent;
+- (void) updateTrackingAreas;
+- (void) mouseEntered:(NSEvent *)event;
+- (void) mouseExited:(NSEvent *)event;
 - (void) mouseDown: (NSEvent*) pEvent;
 - (void) mouseUp: (NSEvent*) pEvent;
 - (void) mouseDragged: (NSEvent*) pEvent;
@@ -134,7 +140,13 @@ NSString* ToNSString(const char* cStr);
 - (NSDragOperation) draggingEntered: (id <NSDraggingInfo>) sender;
 - (BOOL) performDragOperation: (id<NSDraggingInfo>) sender;
 //
-- (void) setMouseCursor: (ECursor) cursor;
+- (void) setMouseCursor: (ECursor) cursorType;
 @end
 
-#endif //NO_IGRAPHICS
+@interface IGRAPHICS_GLLAYER : NSOpenGLLayer
+{
+  IGRAPHICS_VIEW* mView; // OBJC instance variables have to be pointers
+}
+
+- (id) initWithIGraphicsView: (IGRAPHICS_VIEW*) pGraphics;
+@end
