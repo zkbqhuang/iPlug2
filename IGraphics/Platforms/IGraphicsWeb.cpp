@@ -364,8 +364,13 @@ EM_BOOL wheel_callback(int eventType, const EmscriptenWheelEvent* pEvent, void* 
 
 EM_BOOL canvas_size_callback(int eventType, const void* pReserved, void* pUserData)
 {
-  int w, h, fs;
-  emscripten_get_canvas_size(&w, &h, &fs);
+  int w, h;
+  emscripten_get_canvas_element_size("#canvas", &w, &h);
+
+  EmscriptenFullscreenChangeEvent fs;
+
+  emscripten_get_fullscreen_status(&fs);
+
   double cssW, cssH;
   emscripten_get_element_css_size(0, &cssW, &cssH);
   printf("Canvas resized: WebGL RTT size: %dx%d, canvas CSS size: %02gx%02g\n", w, h, cssW, cssH);
@@ -604,7 +609,7 @@ void IGraphicsWeb::DrawResize()
   IGRAPHICS_DRAW_CLASS::DrawResize();
 }
 
-void IGraphicsWeb::RequestFullScreen(bool fullScreen)
+bool IGraphicsWeb::RequestFullScreen(bool fullScreen)
 {
   EmscriptenFullscreenStrategy s;
   memset(&s, 0, sizeof(s));
