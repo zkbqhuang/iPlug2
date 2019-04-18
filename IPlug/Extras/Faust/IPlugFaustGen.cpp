@@ -20,6 +20,10 @@
 #include "faust/dsp/poly-dsp.h"
 #include "fileread.h"
 
+#ifdef OS_WIN
+#include <tchar.h>
+#endif
+
 int FaustGen::sFaustGenCounter = 0;
 int FaustGen::Factory::sFactoryCounter = 0;
 bool FaustGen::sAutoRecompile = false;
@@ -502,7 +506,35 @@ void FaustGen::GetDrawPath(WDL_String& path)
 
 bool FaustGen::CompileCPP()
 {
-//#ifndef OS_WIN
+#ifdef OS_WIN
+  //surpress win32 command prompt popups when calling faust
+  auto syscall = [](const char *cmd) {
+    PROCESS_INFORMATION p_info;
+    STARTUPINFO s_info;
+    LPSTR cmdline, programpath;
+
+    memset(&s_info, 0, sizeof(s_info));
+    memset(&p_info, 0, sizeof(p_info));
+    s_info.cb = sizeof(s_info);
+
+    cmdline = _tcsdup(TEXT(cmd));
+    programpath = _tcsdup(TEXT(cmd));
+
+    if (CreateProcess(programpath, cmdline, NULL, NULL, 0, 0, NULL, NULL, &s_info, &p_info))
+    {
+      WaitForSingleObject(p_info.hProcess, INFINITE);
+      CloseHandle(p_info.hProcess);
+      CloseHandle(p_info.hThread);
+    }
+
+    return 1; //TODO
+  };
+#else
+  auto syscall = [](const char *cmd) {
+    return system(cmd)l
+  }
+#endif
+
   WDL_String archFile;
   archFile.Set(__FILE__);
   archFile.remove_filepart(true);
@@ -523,7 +555,7 @@ bool FaustGen::CompileCPP()
 
     DBGMSG("exec: %s\n", command.Get());
 
-    if(system(command.Get()) == -1)
+    if(syscall(command.Get()) == -1)
       return false;
   }
 
@@ -537,7 +569,7 @@ bool FaustGen::CompileCPP()
   command.SetFormatted(1024, "copy %s*.tmp %s", folder.Get(), finalOutput.Get());
 #endif
 
-  if(system(command.Get()) == -1)
+  if(syscall(command.Get()) == -1)
   {
     DBGMSG("Error concatanating files %s %i\n", __FILE__, __LINE__);
 
@@ -550,14 +582,12 @@ bool FaustGen::CompileCPP()
   command.SetFormatted(1024, "del %s*.tmp", folder.Get());
 #endif
 
-  if(system(command.Get()) == -1)
+  if(syscall(command.Get()) == -1)
   {
     DBGMSG("Error removing output files %s %i\n", __FILE__, __LINE__);
 
     return false;
   }
-
-//#endif
 
   return true;
 }
