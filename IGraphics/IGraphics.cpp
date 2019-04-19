@@ -35,22 +35,6 @@ typedef IPlugVST3Controller VST3_API_BASE;
 #include "IPopupMenuControl.h"
 #include "ITextEntryControl.h"
 
-int IGraphics::PlatformFont::GetFaceIdx(const void* data, int dataSize, const char* styleName)
-{
-  for (int idx = 0; ; idx++)
-  {
-    IFontInfo fontInfo(data, dataSize, idx);
-
-    if (!fontInfo.IsValid())
-      return -1;
-
-    const WDL_String& style = fontInfo.GetStyle();
-
-    if (style.GetLength() && (!styleName[0] || !strcmp(style.Get(), styleName)))
-      return idx;
-  }
-}
-
 struct SVGHolder
 {
   NSVGimage* mImage = nullptr;
@@ -94,6 +78,10 @@ IGraphics::IGraphics(IGEditorDelegate& dlg, int w, int h, int fps, float scale)
 
 IGraphics::~IGraphics()
 {
+#ifdef IGRAPHICS_IMGUI
+  mImGuiRenderer = nullptr;
+#endif
+  
   RemoveAllControls();
     
   StaticStorage<APIBitmap>::Accessor bitmapStorage(sBitmapCache);
@@ -170,13 +158,13 @@ void IGraphics::RemoveAllControls()
   mMouseCapture = mMouseOver = nullptr;
   mMouseOverIdx = -1;
 
-  mPopupControl.reset(nullptr);
-  mTextEntryControl.reset(nullptr);
-  mCornerResizer.reset(nullptr);
-  mPerfDisplay.reset(nullptr);
+  mPopupControl = nullptr;
+  mTextEntryControl = nullptr;
+  mCornerResizer = nullptr;
+  mPerfDisplay = nullptr;
     
 #if !defined(NDEBUG)
-  mLiveEdit.reset(nullptr);
+  mLiveEdit = nullptr;
 #endif
   
   mControls.Empty(true);
@@ -241,7 +229,7 @@ void IGraphics::AttachPopupMenuControl(const IText& text, const IRECT& bounds)
 {
   if (!mPopupControl)
   {
-    mPopupControl.reset(new IPopupMenuControl(kNoParameter, text, IRECT(), bounds));
+    mPopupControl = std::make_unique<IPopupMenuControl>(kNoParameter, text, IRECT(), bounds);
     mPopupControl->SetDelegate(*GetDelegate());
   }
 }
@@ -250,7 +238,7 @@ void IGraphics::AttachTextEntryControl()
 {
   if (!mTextEntryControl)
   {
-    mTextEntryControl.reset(new ITextEntryControl());
+    mTextEntryControl = std::make_unique<ITextEntryControl>();
     mTextEntryControl->SetDelegate(*GetDelegate());
   }
 }
@@ -261,13 +249,13 @@ void IGraphics::ShowFPSDisplay(bool enable)
   {
     if (!mPerfDisplay)
     {
-      mPerfDisplay.reset(new IFPSDisplayControl(GetBounds().GetPadded(-10).GetFromTLHC(200, 50)));
+      mPerfDisplay = std::make_unique<IFPSDisplayControl>(GetBounds().GetPadded(-10).GetFromTLHC(200, 50));
       mPerfDisplay->SetDelegate(*GetDelegate());
     }
   }
   else
   {
-    mPerfDisplay.reset(nullptr);
+    mPerfDisplay = nullptr;
   }
 
   SetAllControlsDirty();
@@ -647,6 +635,15 @@ bool IGraphics::IsDirty(IRECTList& rects)
   }
 #endif
 
+  //TODO: for GL backends, having an ImGui on top currently requires repainting everything on each frame
+#if defined IGRAPHICS_IMGUI && (defined IGRAPHICS_GL2 || defined IGRAPHICS_GL3)
+  if (mImGuiRenderer && mImGuiRenderer->GetDrawFunc())
+  {
+    rects.Add(GetBounds());
+    return true;
+  }
+#endif
+
   return dirty;
 }
 
@@ -747,6 +744,17 @@ void IGraphics::OnMouseDown(float x, float y, const IMouseMod& mod)
         x, y, mod.L, mod.R, mod.S, mod.C, mod.A);
 
   IControl* pControl = GetMouseControl(x, y, true);
+
+#ifdef IGRAPHICS_IMGUI
+  if(mImGuiRenderer)
+  {
+    if(pControl != mCornerResizer.get() && mImGuiRenderer.get()->OnMouseDown(x, y, mod))
+    {
+      ReleaseMouseCapture();
+      return;
+    }
+  }
+#endif
   
   mMouseDownX = x;
   mMouseDownY = y;
@@ -797,7 +805,7 @@ void IGraphics::OnMouseUp(float x, float y, const IMouseMod& mod)
 {
   Trace("IGraphics::OnMouseUp", __LINE__, "x:%0.2f, y:%0.2f, mod:LRSCA: %i%i%i%i%i",
         x, y, mod.L, mod.R, mod.S, mod.C, mod.A);
-   
+  
   if (mMouseCapture)
   {
     int paramIdx = mMouseCapture->ParamIdx();
@@ -808,7 +816,7 @@ void IGraphics::OnMouseUp(float x, float y, const IMouseMod& mod)
     }
     ReleaseMouseCapture();
   }
-    
+
   if (mResizingInProcess)
   {
     mResizingInProcess = false;
@@ -819,13 +827,29 @@ void IGraphics::OnMouseUp(float x, float y, const IMouseMod& mod)
       SetAllControlsDirty();
     }
   }
+  
+#ifdef IGRAPHICS_IMGUI
+  if(mImGuiRenderer)
+  {
+    if(mImGuiRenderer.get()->OnMouseUp(x, y, mod))
+    {
+      ReleaseMouseCapture();
+      return;
+    }
+  }
+#endif
 }
 
 bool IGraphics::OnMouseOver(float x, float y, const IMouseMod& mod)
 {
   Trace("IGraphics::OnMouseOver", __LINE__, "x:%0.2f, y:%0.2f, mod:LRSCA: %i%i%i%i%i",
         x, y, mod.L, mod.R, mod.S, mod.C, mod.A);
-
+  
+#ifdef IGRAPHICS_IMGUI
+  if(mImGuiRenderer)
+    mImGuiRenderer.get()->OnMouseMove(x, y, mod);
+#endif
+  
   // N.B. GetMouseControl handles which controls can receive mouseovers
   IControl* pControl = GetMouseControl(x, y, false, true);
     
@@ -867,12 +891,24 @@ void IGraphics::OnMouseDrag(float x, float y, float dX, float dY, const IMouseMo
   {
     mMouseCapture->OnMouseDrag(x, y, dX, dY, mod);
   }
+#ifdef IGRAPHICS_IMGUI
+  else if(mImGuiRenderer)
+    mImGuiRenderer.get()->OnMouseMove(x, y, mod);
+#endif
 }
 
 bool IGraphics::OnMouseDblClick(float x, float y, const IMouseMod& mod)
 {
   Trace("IGraphics::OnMouseDblClick", __LINE__, "x:%0.2f, y:%0.2f, mod:LRSCA: %i%i%i%i%i",
         x, y, mod.L, mod.R, mod.S, mod.C, mod.A);
+  
+#ifdef IGRAPHICS_IMGUI
+  if(mImGuiRenderer)
+  {
+    mImGuiRenderer.get()->OnMouseDown(x, y, mod);
+    return true;
+  }
+#endif
 
   IControl* pControl = GetMouseControl(x, y, true);
     
@@ -894,22 +930,68 @@ bool IGraphics::OnMouseDblClick(float x, float y, const IMouseMod& mod)
 
 void IGraphics::OnMouseWheel(float x, float y, const IMouseMod& mod, float d)
 {
+#ifdef IGRAPHICS_IMGUI
+    if(mImGuiRenderer)
+    {
+      mImGuiRenderer.get()->OnMouseWheel(x, y, mod, d);
+      return;
+    }
+#endif
+  
   IControl* pControl = GetMouseControl(x, y, false);
   if (pControl) pControl->OnMouseWheel(x, y, mod, d);
 }
 
 bool IGraphics::OnKeyDown(float x, float y, const IKeyPress& key)
 {
-  Trace("IGraphics::OnKeyDown", __LINE__, "x:%0.2f, y:%0.2f, key:%i",
-        x, y, key.Ascii);
+  Trace("IGraphics::OnKeyDown", __LINE__, "x:%0.2f, y:%0.2f, key:%s",
+        x, y, key.utf8);
 
   bool handled = false;
 
+#ifdef IGRAPHICS_IMGUI
+  if(mImGuiRenderer)
+  {
+    handled = mImGuiRenderer.get()->OnKeyDown(x, y, key);
+    
+    if(handled)
+      return true;
+  }
+#endif
+  
   IControl* pControl = GetMouseControl(x, y, false);
   
   if (pControl && pControl != GetControl(0))
     handled = pControl->OnKeyDown(x, y, key);
 
+  if(!handled)
+    handled = mKeyHandlerFunc ? mKeyHandlerFunc(key) : false;
+  
+  return handled;
+}
+
+bool IGraphics::OnKeyUp(float x, float y, const IKeyPress& key)
+{
+  Trace("IGraphics::OnKeyUp", __LINE__, "x:%0.2f, y:%0.2f, key:%s",
+        x, y, key.utf8);
+  
+  bool handled = false;
+  
+#ifdef IGRAPHICS_IMGUI
+  if(mImGuiRenderer)
+  {
+    handled = mImGuiRenderer.get()->OnKeyUp(x, y, key);
+    
+    if(handled)
+      return true;
+  }
+#endif
+  
+  IControl* pControl = GetMouseControl(x, y, false);
+  
+  if (pControl && pControl != GetControl(0))
+    handled = pControl->OnKeyUp(x, y, key);
+  
   if(!handled)
     handled = mKeyHandlerFunc ? mKeyHandlerFunc(key) : false;
   
@@ -1135,13 +1217,13 @@ void IGraphics::EnableLiveEdit(bool enable, const char* file, int gridsize)
   {
     if (!mLiveEdit)
     {
-      mLiveEdit.reset(new IGraphicsLiveEdit(mHandleMouseOver/*, file, gridsize*/));
+      mLiveEdit = std::make_unique<IGraphicsLiveEdit>(mHandleMouseOver/*, file, gridsize*/);
       mLiveEdit->SetDelegate(*GetDelegate());
     }
   }
   else
   {
-    mLiveEdit.reset(nullptr);
+    mLiveEdit = nullptr;
   }
   
   mMouseOver = nullptr;
@@ -1239,7 +1321,7 @@ IBitmap IGraphics::LoadBitmap(const char* name, int nStates, bool framesAreHoriz
       // Load the resource if no match found
       if (!pAPIBitmap)
       {
-        loadedBitmap.reset(LoadAPIBitmap(fullPath.Get(), sourceScale, resourceLocation, ext));
+        loadedBitmap = std::unique_ptr<APIBitmap>(LoadAPIBitmap(fullPath.Get(), sourceScale, resourceLocation, ext));
         pAPIBitmap= loadedBitmap.get();
       }
     }
@@ -1467,40 +1549,41 @@ void IGraphics::DrawRotatedLayer(const ILayerPtr& layer, double angle)
   PathTransformRestore();
 }
 
-void GaussianBlurSwap(unsigned char *out, unsigned char *in, unsigned char *kernel, int width, int height, int outStride, int inStride, int kernelSize, unsigned long norm)
-{
-  for (int i = 0; i < height; i++, in += inStride)
-  {
-    for (int j = 0; j < kernelSize - 1; j++)
-    {
-      unsigned long accum = in[j * 4] * kernel[0];
-      for (int k = 1; k < j + 1; k++)
-        accum += kernel[k] * in[(j - k) * 4];
-      for (int k = 1; k < kernelSize; k++)
-        accum += kernel[k] * in[(j + k) * 4];
-      out[j * outStride + (i * 4)] = static_cast<unsigned char>(std::min(static_cast<unsigned long>(255), accum / norm));
-    }
-    for (int j = kernelSize - 1; j < (width - kernelSize) + 1; j++)
-    {
-      unsigned long accum = in[j * 4] * kernel[0];
-      for (int k = 1; k < kernelSize; k++)
-        accum += kernel[k] * (in[(j - k) * 4] + in[(j + k) * 4]);
-      out[j * outStride + (i * 4)] = static_cast<unsigned char>(std::min(static_cast<unsigned long>(255), accum / norm));
-    }
-    for (int j = (width - kernelSize) + 1; j < width; j++)
-    {
-      unsigned long accum = in[j * 4] * kernel[0];
-      for (int k = 1; k < kernelSize; k++)
-        accum += kernel[k] * in[(j - k) * 4];
-      for (int k = 1; k < width - j; k++)
-        accum += kernel[k] * in[(j + k) * 4];
-      out[j * outStride + (i * 4)] = static_cast<unsigned char>(std::min(static_cast<unsigned long>(255), accum / norm));
-    }
-  }
-}
-
 void IGraphics::ApplyLayerDropShadow(ILayerPtr& layer, const IShadow& shadow)
 {
+  auto GaussianBlurSwap = [](uint8_t* out, uint8_t* in, uint8_t* kernel, int width, int height,
+                             int outStride, int inStride, int kernelSize, uint32_t norm)
+  {
+    for (int i = 0; i < height; i++, in += inStride)
+    {
+      for (int j = 0; j < kernelSize - 1; j++)
+      {
+        uint32_t accum = in[j * 4] * kernel[0];
+        for (int k = 1; k < j + 1; k++)
+          accum += kernel[k] * in[(j - k) * 4];
+        for (int k = 1; k < kernelSize; k++)
+          accum += kernel[k] * in[(j + k) * 4];
+        out[j * outStride + (i * 4)] = static_cast<uint8_t>(std::min(static_cast<uint32_t>(255), accum / norm));
+      }
+      for (int j = kernelSize - 1; j < (width - kernelSize) + 1; j++)
+      {
+        uint32_t accum = in[j * 4] * kernel[0];
+        for (int k = 1; k < kernelSize; k++)
+          accum += kernel[k] * (in[(j - k) * 4] + in[(j + k) * 4]);
+        out[j * outStride + (i * 4)] = static_cast<uint8_t>(std::min(static_cast<uint32_t>(255), accum / norm));
+      }
+      for (int j = (width - kernelSize) + 1; j < width; j++)
+      {
+        uint32_t accum = in[j * 4] * kernel[0];
+        for (int k = 1; k < kernelSize; k++)
+          accum += kernel[k] * in[(j - k) * 4];
+        for (int k = 1; k < width - j; k++)
+          accum += kernel[k] * in[(j + k) * 4];
+        out[j * outStride + (i * 4)] = static_cast<uint8_t>(std::min(static_cast<uint32_t>(255), accum / norm));
+      }
+    }
+  };
+  
   RawBitmapData temp1;
   RawBitmapData temp2;
   RawBitmapData kernel;
@@ -1530,23 +1613,20 @@ void IGraphics::ApplyLayerDropShadow(ILayerPtr& layer, const IShadow& shadow)
     kernel.Get()[i] = static_cast<uint8_t>(std::round(255.f * std::expf(-(i * i) * blurConst)));
   
   // Kernel normalisation
-  
   int normFactor = kernel.Get()[0];
     
   for (int i = 1; i < iSize; i++)
     normFactor += kernel.Get()[i] + kernel.Get()[i];
   
   // Do blur
-  
-  unsigned char* asRows = temp1.Get() + AlphaChannel();
-  unsigned char* inRows = flipped ? asRows + stride3 * (height - 1) : asRows;
-  unsigned char* asCols = temp2.Get() + AlphaChannel();
+  uint8_t* asRows = temp1.Get() + AlphaChannel();
+  uint8_t* inRows = flipped ? asRows + stride3 * (height - 1) : asRows;
+  uint8_t* asCols = temp2.Get() + AlphaChannel();
   
   GaussianBlurSwap(asCols, inRows, kernel.Get(), width, height, stride1, stride2, iSize, normFactor);
   GaussianBlurSwap(asRows, asCols, kernel.Get(), height, width, stride3, stride1, iSize, normFactor);
   
   // Apply alphas to the pattern and recombine/replace the image
-    
   ApplyShadowMask(layer, temp1, shadow);
 }
 
@@ -1583,3 +1663,14 @@ bool IGraphics::LoadFont(const char* fontID, const char* fontName, ETextStyle st
   DBGMSG("Could not locate font %s\n", fontID);
   return false;
 }
+
+#ifdef IGRAPHICS_IMGUI
+void IGraphics::AttachImGui(std::function<void(IGraphics*)> drawFunc, std::function<void()> setupFunc)
+{
+  mImGuiRenderer std::make_unique<ImGuiRenderer>(this, drawFunc, setupFunc);
+  
+#if !defined IGRAPHICS_GL2 && !defined IGRAPHICS_GL3 // TODO: IGRAPHICS_GL!
+  CreatePlatformImGui();
+#endif
+}
+#endif

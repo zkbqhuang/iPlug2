@@ -47,7 +47,7 @@ void* IGEditorDelegate::OpenWindow(void* pParent)
 {
   if(!mGraphics) {
     mIGraphicsTransient = true;
-    mGraphics.reset(CreateGraphics());
+    mGraphics = std::unique_ptr<IGraphics>(CreateGraphics());
   }
   
   if(mGraphics)
@@ -70,7 +70,7 @@ void IGEditorDelegate::CloseWindow()
     
       if (mIGraphicsTransient)
       {
-        mGraphics.reset(nullptr);
+        mGraphics = nullptr;
       }
     }
     mClosing = false;
@@ -159,7 +159,7 @@ void IGEditorDelegate::AttachGraphics(IGraphics* pGraphics)
 {
   assert(!mGraphics); // protect against calling AttachGraphics() when mGraphics already exists
 
-  mGraphics.reset(pGraphics);
+  mGraphics = std::unique_ptr<IGraphics>(pGraphics);
   mIGraphicsTransient = false;
 }
 

@@ -8,9 +8,15 @@
  ==============================================================================
 */
 
-#ifdef IGRAPHICS_NANOVG
 #import <QuartzCore/QuartzCore.h>
+
+#ifdef IGRAPHICS_IMGUI
+#import <Metal/Metal.h>
+#include "imgui.h"
+#import "imgui_impl_metal.h"
 #endif
+
+#include "wdlutf8.h"
 
 #import "IGraphicsMac_view.h"
 #include "IControl.h"
@@ -232,14 +238,14 @@ static int MacKeyEventToVK(NSEvent* pEvent, int& flag)
 
 - (bool) becomeFirstResponder;
 {
-    bool success = [super becomeFirstResponder];
-    if (success)
-    {
-        NSTextView *textField = (NSTextView*) [self currentEditor];
-        if( [textField respondsToSelector: @selector(setInsertionPointColor:)] )
-            [textField setInsertionPointColor: [self textColor]];
-    }
-    return success;
+  bool success = [super becomeFirstResponder];
+  if (success)
+  {
+    NSTextView *textField = (NSTextView*) [self currentEditor];
+    if( [textField respondsToSelector: @selector(setInsertionPointColor:)] )
+      [textField setInsertionPointColor: [self textColor]];
+  }
+  return success;
 }
 
 @end
@@ -450,6 +456,8 @@ inline int GetMouseOver(IGraphicsMac* pGraphics)
 
 #pragma mark -
 
+extern StaticStorage<CoreTextFontDescriptor> sFontDescriptorCache;
+
 @implementation IGRAPHICS_VIEW
 
 - (id) initWithIGraphics: (IGraphicsMac*) pGraphics
@@ -457,10 +465,7 @@ inline int GetMouseOver(IGraphicsMac* pGraphics)
   TRACE;
 
   mGraphics = pGraphics;
-  NSRect r;
-  r.origin.x = r.origin.y = 0.0f;
-  r.size.width = (float) pGraphics->WindowWidth();
-  r.size.height = (float) pGraphics->WindowHeight();
+  NSRect r = NSMakeRect(0.f, 0.f, (float) pGraphics->WindowWidth(), (float) pGraphics->WindowHeight());
   self = [super initWithFrame:r];
   
 #if defined IGRAPHICS_NANOVG
@@ -475,7 +480,7 @@ inline int GetMouseOver(IGraphicsMac* pGraphics)
     self.wantsLayer = YES;
   }
 #endif
-
+  
   [self registerForDraggedTypes:[NSArray arrayWithObjects: NSFilenamesPboardType, nil]];
 
   double sec = 1.0 / (double) pGraphics->FPS();
@@ -486,7 +491,7 @@ inline int GetMouseOver(IGraphicsMac* pGraphics)
 }
 
 - (void)dealloc
-{
+{  
   [mMoveCursor release];
   [mTrackingArea release];
   [[NSNotificationCenter defaultCenter] removeObserver:self];
@@ -589,7 +594,7 @@ inline int GetMouseOver(IGraphicsMac* pGraphics)
 
 - (void) render
 {
-#if !defined IGRAPHICS_NANOVG // for layer-backed views drawRect is not called
+#if !defined IGRAPHICS_NANOVG // for layer-backed views setNeedsDisplayInRect/drawRect is not called
   for (int i = 0; i < mDirtyRects.Size(); i++)
     [self setNeedsDisplayInRect:ToNSRect(mGraphics, mDirtyRects.Get(i))];
 #else
@@ -752,15 +757,49 @@ inline int GetMouseOver(IGraphicsMac* pGraphics)
     code = kVK_NONE;
   }
   
-  IKeyPress keyPress {static_cast<char>(c), code, static_cast<bool>(flag & kFSHIFT),
-                                                  static_cast<bool>(flag & kFCONTROL),
-                                                  static_cast<bool>(flag & kFALT)};
+  char utf8[5];
+  WDL_MakeUTFChar(utf8, c, 4);
+  
+  IKeyPress keyPress {utf8, code, static_cast<bool>(flag & kFSHIFT),
+                                  static_cast<bool>(flag & kFCONTROL),
+                                  static_cast<bool>(flag & kFALT)};
   
   bool handle = mGraphics->OnKeyDown(mPrevX, mPrevY, keyPress);
   
   if (!handle)
   {
     [[self nextResponder] keyDown:pEvent];
+  }
+}
+
+- (void)keyUp: (NSEvent *)pEvent
+{
+  int flag = 0;
+  int code = MacKeyEventToVK(pEvent, flag);
+  NSString *s = [pEvent charactersIgnoringModifiers];
+  
+  unichar c = 0;
+  
+  if ([s length] == 1)
+    c = [s characterAtIndex:0];
+  
+  if(!static_cast<bool>(flag & kFVIRTKEY))
+  {
+    code = kVK_NONE;
+  }
+  
+  char utf8[5];
+  WDL_MakeUTFChar(utf8, c, 4);
+  
+  IKeyPress keyPress {utf8, code, static_cast<bool>(flag & kFSHIFT),
+                                                  static_cast<bool>(flag & kFCONTROL),
+                                                  static_cast<bool>(flag & kFALT)};
+  
+  bool handle = mGraphics->OnKeyUp(mPrevX, mPrevY, keyPress);
+  
+  if (!handle)
+  {
+    [[self nextResponder] keyUp:pEvent];
   }
 }
 
@@ -987,7 +1026,7 @@ static void MakeCursorFromName(NSCursor*& cursor, const char *name)
     [mTextFieldView setDrawsBackground: TRUE];
   }
 
-  NSFontDescriptor*  fontDescriptor = (NSFontDescriptor*) mGraphics->GetCTFontDescriptor(text);
+  NSFontDescriptor* fontDescriptor = (NSFontDescriptor*) CoreTextHelpers::GetCTFontDescriptor(text, sFontDescriptorCache);
   NSFont* font = [NSFont fontWithDescriptor: fontDescriptor size: text.mSize * 0.75];
   [mTextFieldView setFont: font];
   
@@ -1150,3 +1189,52 @@ static void MakeCursorFromName(NSCursor*& cursor, const char *name)
 //}
 
 @end
+
+#ifdef IGRAPHICS_IMGUI
+
+@implementation IGRAPHICS_IMGUIVIEW
+{
+}
+
+- (id) initWithIGraphicsView: (IGRAPHICS_VIEW*) pView;
+{
+  mView = pView;
+  self = [super initWithFrame:[pView frame] device: MTLCreateSystemDefaultDevice()];
+  if(self) {
+    _commandQueue = [self.device newCommandQueue];
+    self.layer.opaque = NO;
+  }
+  
+  return self;
+}
+
+- (void)drawRect:(NSRect)dirtyRect
+{
+  id<MTLCommandBuffer> commandBuffer = [self.commandQueue commandBuffer];
+  
+  MTLRenderPassDescriptor *renderPassDescriptor = self.currentRenderPassDescriptor;
+  if (renderPassDescriptor != nil)
+  {
+    renderPassDescriptor.colorAttachments[0].clearColor = MTLClearColorMake(0,0,0,0);
+    
+    id <MTLRenderCommandEncoder> renderEncoder = [commandBuffer renderCommandEncoderWithDescriptor:renderPassDescriptor];
+    [renderEncoder pushDebugGroup:@"ImGui IGraphics"];
+    
+    ImGui_ImplMetal_NewFrame(renderPassDescriptor);
+    
+    mView->mGraphics->mImGuiRenderer->DoFrame();
+
+    ImDrawData *drawData = ImGui::GetDrawData();
+    ImGui_ImplMetal_RenderDrawData(drawData, commandBuffer, renderEncoder);
+    
+    [renderEncoder popDebugGroup];
+    [renderEncoder endEncoding];
+    
+    [commandBuffer presentDrawable:self.currentDrawable];
+  }
+  [commandBuffer commit];
+}
+
+@end
+
+#endif

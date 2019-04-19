@@ -10,11 +10,11 @@
 
 #import <Cocoa/Cocoa.h>
 
-#include "IGraphicsMac.h"
-
 #if defined IGRAPHICS_GL
 #import <QuartzCore/QuartzCore.h>
 #endif
+
+#include "IGraphicsMac.h"
 
 inline NSRect ToNSRect(IGraphics* pGraphics, const IRECT& bounds)
 {
@@ -140,8 +140,20 @@ inline NSColor* ToNSColor(const IColor& c)
 
 @interface IGRAPHICS_GLLAYER : NSOpenGLLayer
 {
-  IGRAPHICS_VIEW* mView; // OBJC instance variables have to be pointers
+  IGRAPHICS_VIEW* mView;
 }
 
-- (id) initWithIGraphicsView: (IGRAPHICS_VIEW*) pGraphics;
+- (id) initWithIGraphicsView: (IGRAPHICS_VIEW*) pView;
 @end
+
+#ifdef IGRAPHICS_IMGUI
+#import <MetalKit/MetalKit.h>
+
+@interface IGRAPHICS_IMGUIVIEW : MTKView
+{
+  IGRAPHICS_VIEW* mView;
+}
+@property (nonatomic, strong) id <MTLCommandQueue> commandQueue;
+- (id) initWithIGraphicsView: (IGRAPHICS_VIEW*) pView;
+@end
+#endif
