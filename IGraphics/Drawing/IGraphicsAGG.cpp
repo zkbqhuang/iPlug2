@@ -190,9 +190,7 @@ IGraphicsAGG::IGraphicsAGG(IGEditorDelegate& dlg, int w, int h, int fps, float s
 , mFontEngine()
 , mFontManager(mFontEngine)
 , mFontCurves(mFontManager.path_adaptor())
-, mFontContour(mFontCurves)
 , mFontCurvesTransformed(mFontCurves, mTransform)
-, mFontContourTransformed(mFontContour, mTransform)
 {
   DBGMSG("IGraphics AGG @ %i FPS\n", fps);
     
@@ -531,51 +529,6 @@ void IGraphicsAGG::EndFrame()
 #endif
 }
 
-void IGraphicsAGG::CalculateTextLines(WDL_TypedBuf<LineInfo>* pLines, const IRECT& bounds, const char* str, FontManagerType& manager)
-{
-  LineInfo info;
-  info.mStartChar = 0;
-  info.mEndChar = 0;
-  pLines->Add(info);
-  
-  LineInfo* pLine = pLines->Get();
-  
-  int linePos = 0;
-  double xCount = 0.0;
-  
-  const char* cstr = str;
-  
-  while (*cstr)
-  {
-    const agg::glyph_cache* pGlyph = manager.glyph(*cstr);
-    
-    if (pGlyph)
-    {
-      xCount += pGlyph->advance_x;
-    }
-
-    cstr++;
-    linePos++;
-    
-    if (*cstr == ' ' || *cstr == 0)
-    {
-      pLine->mEndChar = linePos;
-      pLine->mWidth = xCount;
-    }
-    /*
-    if (bounds.W() > 0 && xCount >= bounds.W())
-    {
-      cstr = &str[pLine->mEndChar];
-        
-      LineInfo info;
-      info.mStartChar = info.mEndChar = linePos = pLine->mEndChar + 1;
-      info.mWidth = xCount = 0.0;
-    
-      pLine = pLines->Add(info);
-    }*/
-  }
-}
-
 bool IGraphicsAGG::SetFont(const char* fontID, IFontData* pFont)
 {
   agg::glyph_rendering render = agg::glyph_ren_outline;
@@ -589,11 +542,8 @@ bool IGraphicsAGG::DoDrawMeasureText(const IText& text, const char* str, IRECT& 
     return false;
   }
 
-  float weight = 0.0;
-  const bool kerning = false;
+  const bool kerning = true;
   const bool hinting = false;
-
-  mFontContour.width(-weight * (text.mSize * 0.05));
   
   StaticStorage<IFontData>::Accessor storage(sFontCache);
   IFontData* pFont = storage.Find(text.mFont);
@@ -604,79 +554,75 @@ bool IGraphicsAGG::DoDrawMeasureText(const IText& text, const char* str, IRECT& 
   }
     
   mFontEngine.hinting(hinting);
-  mFontEngine.height(text.mSize);
-  mFontEngine.width(text.mSize);
+  mFontEngine.height(text.mSize * pFont->GetHeightEMRatio());
   mFontEngine.flip_y(true);
-
-  WDL_TypedBuf<LineInfo> lines;
-  CalculateTextLines(&lines, bounds, str, mFontManager);
-  LineInfo * pLines = lines.Get();
+  
+  const double textHeight = text.mSize;
+  const double EMHeight = pFont->GetAscender() - pFont->GetDescender();
+  const double ascender = text.mSize * pFont->GetAscender() / EMHeight;
+  const double descender = text.mSize * pFont->GetDescender() / EMHeight;
   
   double x = bounds.L;
-  double y = bounds.T + (text.mSize);
+  double y = bounds.T + textHeight;
   
   switch (text.mVAlign)
   {
-    case IText::kVAlignTop:      y = bounds.T + mFontEngine.ascender();                               break;
-    case IText::kVAlignMiddle:   y = bounds.MH() + mFontEngine.descender() + text.mSize/2.;           break;
-    case IText::kVAlignBottom:   y = bounds.B + mFontEngine.descender();                              break;
+    case IText::kVAlignTop:      y = bounds.T + ascender;                               break;
+    case IText::kVAlignMiddle:   y = bounds.MH() + descender + textHeight/2.;           break;
+    case IText::kVAlignBottom:   y = bounds.B + descender;                              break;
   }
   
+  mFontManager.reset_last_glyph();
+  double width = 0.0;
+  
+  for (int i = 0; str[i]; i++)
+  {
+    const agg::glyph_cache* pGlyph = mFontManager.glyph(str[i]);
+    
+    if (kerning)
+    {
+      double dx = 0.0;
+      double dy = 0.0;
+      mFontManager.add_kerning(&dx, &dy);
+      width += dx;
+    }
+    
+    width += pGlyph->advance_x;
+  }
+    
   if (measure)
   {
-    double width = 0.0;
-    
-    for (int i = 0; i < lines.GetSize(); ++i, ++pLines)
-      width = std::max(width, pLines->mWidth);
-    
-    bounds.B = bounds.T + lines.GetSize() * text.mSize;
+    bounds.B = bounds.T + textHeight;
     bounds.R = bounds.L + width;
   }
   else
   {
-    for (int i = 0; i < lines.GetSize(); ++i, ++pLines)
+    switch (text.mAlign)
     {
-      switch (text.mAlign)
-      {
-        case IText::kAlignNear:
-          x = bounds.L;
-          break;
-        case IText::kAlignCenter:
-          x = bounds.L + ((bounds.W() - pLines->mWidth) / 2.0);
-          break;
-        case IText::kAlignFar:
-          x = bounds.L + (bounds.W() - pLines->mWidth);
-          break;
-      }
+      case IText::kAlignNear:     x = bounds.L;                                   break;
+      case IText::kAlignCenter:   x = bounds.L + ((bounds.W() - width) / 2.0);    break;
+      case IText::kAlignFar:      x = bounds.L + (bounds.W() - width);            break;
+    }
+    
+    agg::rgba8 color(AGGColor(text.mFGColor, BlendWeight(pBlend)));
+    mFontManager.reset_last_glyph();
+    
+    for (size_t c = 0; str[c]; c++)
+    {
+      const agg::glyph_cache* pGlyph = mFontManager.glyph(str[c]);
       
-      for (size_t c = pLines->mStartChar; c < pLines->mEndChar; c++)
+      if (pGlyph)
       {
-        const agg::glyph_cache* pGlyph = mFontManager.glyph(str[c]);
-        
-        if (pGlyph)
+        if (kerning)
         {
-          if (kerning)
-          {
-            mFontManager.add_kerning(&x, &y);
-          }
-          
-          mFontManager.init_embedded_adaptors(pGlyph, x, y);
-          agg::rgba8 color(AGGColor(text.mFGColor, BlendWeight(pBlend)));
-          
-          if (std::fabs(weight) <= 0.01)
-          {
-            //for the sake of efficiency skip the contour converter if the weight is about zero.
-            mRasterizer.Rasterize(mFontCurvesTransformed, color, AGGBlendMode(pBlend));
-          }
-          else
-          {
-            mRasterizer.Rasterize(mFontContourTransformed, color, AGGBlendMode(pBlend));
-          }
+          mFontManager.add_kerning(&x, &y);
         }
-        x += pGlyph->advance_x;
-        y += pGlyph->advance_y;
+        
+        mFontManager.init_embedded_adaptors(pGlyph, x, y);
+        mRasterizer.Rasterize(mFontCurvesTransformed, color, AGGBlendMode(pBlend));
       }
-      y += text.mSize;
+      x += pGlyph->advance_x;
+      y += pGlyph->advance_y;
     }
   }
   

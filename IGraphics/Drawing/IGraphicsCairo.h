@@ -78,7 +78,7 @@ protected:
   APIBitmap* LoadAPIBitmap(const char* fileNameOrResID, int scale, EResourceLocation location, const char* ext) override;
   APIBitmap* CreateAPIBitmap(int width, int height, int scale, double drawScale) override;
 
-  bool LoadAPIFont(const char* fontID, const PlatformFontPtr& font);
+  bool LoadAPIFont(const char* fontID, const PlatformFontPtr& font) override;
     
   int AlphaChannel() const override { return 3; }
   bool FlippedBitmap() const override { return false; }
@@ -92,8 +92,6 @@ protected:
   
 private:
     
-  cairo_font_face_t* FindFont(const IText& text);
-
   void PathTransformSetMatrix(const IMatrix& m) override;
   void SetClipRegion(const IRECT& r) override;
   
