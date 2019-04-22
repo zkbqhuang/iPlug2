@@ -87,15 +87,15 @@ void IGraphicsMac::CachePlatformFont(const char* fontID, const PlatformFontPtr& 
   CoreTextHelpers::CachePlatformFont(fontID, font, sFontDescriptorCache);
 }
 
-bool IGraphicsMac::MeasureText(const IText& text, const char* str, IRECT& bounds)
+void IGraphicsMac::MeasureText(const IText& text, const char* str, IRECT& bounds) const
 {
 #ifdef IGRAPHICS_LICE
   @autoreleasepool
   {
-    return IGRAPHICS_DRAW_CLASS::MeasureText(text, str, bounds);
+    IGRAPHICS_DRAW_CLASS::MeasureText(text, str, bounds);
   }
 #else
-  return IGRAPHICS_DRAW_CLASS::MeasureText(text, str, bounds);
+  IGRAPHICS_DRAW_CLASS::MeasureText(text, str, bounds);
 #endif
 }
 
@@ -113,7 +113,7 @@ void* IGraphicsMac::OpenWindow(void* pParent)
   CloseWindow();
   mView = (IGRAPHICS_VIEW*) [[IGRAPHICS_VIEW alloc] initWithIGraphics: this];
   
-#ifndef IGRAPHICS_GL
+#ifndef IGRAPHICS_GL // with OpenGL, we don't get given the glcontext until later, ContextReady will get called elsewhere
   IGRAPHICS_VIEW* pView = (IGRAPHICS_VIEW*) mView;
   ContextReady([pView layer]);
 #endif
@@ -628,7 +628,6 @@ void IGraphicsMac::CreatePlatformImGui()
 #endif
 }
 
-//TODO: THIS IS TEMPORARY, TO EASE DEVELOPMENT
 #ifdef IGRAPHICS_AGG
   #include "IGraphicsAGG.cpp"
 #elif defined IGRAPHICS_CAIRO

@@ -553,7 +553,7 @@ extern StaticStorage<CoreTextFontDescriptor> sFontDescriptorCache;
   
   CGFloat newScale = [pWindow backingScaleFactor];
   
-  if (newScale != mGraphics->GetScreenScale())
+  if (mGraphics->GetDrawContext() && newScale != mGraphics->GetScreenScale())
     mGraphics->SetScreenScale(newScale);
 
 #ifdef IGRAPHICS_GL
@@ -975,10 +975,7 @@ static void MakeCursorFromName(NSCursor*& cursor, const char *name)
 {
   char* txt = (char*)[[mTextFieldView stringValue] UTF8String];
 
-  if (mEdControl->GetParam())
-    mGraphics->SetControlValueFromStringAfterPrompt(*mEdControl, txt);
-
-  mEdControl->OnTextEntryCompletion(txt);
+  mGraphics->SetControlValueFromStringAfterPrompt(*mEdControl, txt);
   mGraphics->SetAllControlsDirty();
 
   [self endUserInput ];

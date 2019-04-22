@@ -574,12 +574,12 @@ struct IText
    * @param orientation /todo
    * @param TEBGColor /todo
    * @param TEFGColor /todo */
-  IText(int size = DEFAULT_TEXT_SIZE,
+  IText(float size = DEFAULT_TEXT_SIZE,
         const IColor& color = DEFAULT_TEXT_FGCOLOR,
         const char* font = nullptr,
         EAlign align = kAlignCenter,
         EVAlign valign = kVAlignMiddle,
-        int orientation = 0,
+        float orientation = 0,
         const IColor& TEBGColor = DEFAULT_TEXTENTRY_BGCOLOR,
         const IColor& TEFGColor = DEFAULT_TEXTENTRY_FGCOLOR)
     : mSize(size)
@@ -596,7 +596,7 @@ struct IText
   /** /todo 
     * @param size /todo
     * @param valign /todo */
-  IText(int size, EVAlign valign)
+  IText(float size, EVAlign valign)
   : IText()
   {
     mSize = size;
@@ -606,7 +606,7 @@ struct IText
   /** /todo 
    * @param size /todo
    * @param align /todo */
-  IText(int size, EAlign align)
+  IText(float size, EAlign align)
   : IText()
   {
     mSize = size;
@@ -614,11 +614,11 @@ struct IText
   }
     
   char mFont[FONT_LEN];
-  int mSize;
+  float mSize;
   IColor mFGColor;
   IColor mTextEntryBGColor;
   IColor mTextEntryFGColor;
-  int mOrientation = 0; // Degrees ccwise from normal.
+  float mOrientation = 0.f; // Degrees ccwise from normal.
 };
 
 const IText DEFAULT_TEXT = IText();

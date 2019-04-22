@@ -172,7 +172,6 @@ public:
     void BlendFrom(agg::rendering_buffer& renBuf, const IRECT& bounds, int srcX, int srcY, agg::comp_op_e op, agg::cover_type cover, bool preMultiplied)
     {
       // N.B. blend_from/rect_i is inclusive, hence -1 on each dimension here
-      
       agg::rect_i r(srcX, srcY, srcX + std::round(bounds.W()) - 1, srcY + std::round(bounds.H()) - 1);
       int x = std::round(bounds.L) - srcX;
       int y = std::round(bounds.T) - srcY;
@@ -202,14 +201,12 @@ public:
     void SetPath(VertexSourceType& path)
     {
       // Clip
-      
       IRECT clip = mGraphics.mClipRECT.Empty() ? mGraphics.GetBounds() : mGraphics.mClipRECT;
       clip.Translate(mGraphics.XTranslate(), mGraphics.YTranslate());
       clip.Scale(mGraphics.GetBackingPixelScale());
       mRasterizer.clip_box(clip.L, clip.T, clip.R, clip.B);
       
       // Add path
-      
       mRasterizer.reset();
       mRasterizer.add_path(path);
     }
@@ -291,11 +288,12 @@ protected:
   void GetLayerBitmapData(const ILayerPtr& layer, RawBitmapData& data) override;
   void ApplyShadowMask(ILayerPtr& layer, RawBitmapData& mask, const IShadow& shadow) override;
 
-  bool DoDrawMeasureText(const IText& text, const char* str, IRECT& bounds, const IBlend* pBlend = 0, bool measure = false) override;
+  void DoMeasureText(const IText& text, const char* str, IRECT& bounds) const override;
+  void DoDrawText(const IText& text, const char* str, const IRECT& bounds, const IBlend* pBlend) override;
 
 private:
-  
-  bool SetFont(const char* fontID, IFontData* pFont);
+  void PrepareAndMeasureText(const IText& text, const char* str, IRECT& r, double& x, double & y) const;
+  bool SetFont(const char* fontID, IFontData* pFont) const;
 
   double XTranslate()  { return mLayers.empty() ? 0 : -mLayers.top()->Bounds().L; }
   double YTranslate()  { return mLayers.empty() ? 0 : -mLayers.top()->Bounds().T; }
@@ -311,8 +309,8 @@ private:
   void SetClipRegion(const IRECT& r) override { mClipRECT = r; }
 
   IRECT mClipRECT;
-  FontEngineType mFontEngine;
-  FontManagerType mFontManager;
+  mutable FontEngineType mFontEngine;
+  mutable FontManagerType mFontManager;
   agg::rendering_buffer mRenBuf;
   agg::path_storage mPath;
   agg::trans_affine mTransform;

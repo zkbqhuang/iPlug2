@@ -44,7 +44,7 @@ public:
   /** Constructor
    * @brief Creates an IControl
    * NOTE: An IControl does not know about the delegate or graphics context to which it belongs in the constructor
-   * If you need to do something once those things are know, see IControl::OnInit()
+   * If you need to do something once those things are known, see IControl::OnInit()
    * @param bounds The rectangular area that the control occupies
    * @param paramIdx If this is > -1 (kNoParameter) this control will be associated with a plugin parameter
    * @param actionFunc pass in a lambda function to provide custom functionality when the control "action" happens (usually mouse down). */
@@ -53,7 +53,7 @@ public:
   /** Constructor (no paramIdx)
    * @brief Creates an IControl which is not linked to a parameter
    * NOTE: An IControl does not know about the delegate or graphics context to which it belongs in the constructor
-   * If you need to do something once those things are know, see IControl::OnInit()
+   * If you need to do something once those things are known, see IControl::OnInit()
    * @param bounds The rectangular area that the control occupies
    * @param actionFunc pass in a lambda function to provide custom functionality when the control "action" happens (usually mouse down). */
   IControl(IRECT bounds, IActionFunction actionFunc);
@@ -110,10 +110,10 @@ public:
    * @param x The X coordinate of the mouse event
    * @param y The Y coordinate of the mouse event
    * @param mod A struct indicating which modifier keys are held for the event */
-  virtual void OnMouseOver(float x, float y, const IMouseMod& mod) { mMouseIsOver = true; SetDirty(false); }
+  virtual void OnMouseOver(float x, float y, const IMouseMod& mod);
 
   /** Implement this method to respond to a mouseout event on this control. Implementations should call base class, if you wish to use mMouseIsOver. */
-  virtual void OnMouseOut() { mMouseIsOver = false; SetDirty(false);  }
+  virtual void OnMouseOut();
 
   /** Implement to do something when something was drag 'n dropped onto this control */
   virtual void OnDrop(const char* str) {};
@@ -317,11 +317,6 @@ public:
    * @return \c true if the control is marked dirty. */
   virtual bool IsDirty();
 
-  /** Set a range with which to limit the control's movement
-   * @param lo The low bounds of the clamp (should be within the range 0-1)
-   * @param hi The high bounds of the clamp (should be within the range 0-1) */
-  void Clamp(double lo, double hi) { mClampLo = lo; mClampHi = hi; }
-
   /** Disable/enable right-clicking the control to prompt for user input /todo check this
    * @param disable \c true*/
   void DisablePrompt(bool disable) { mDisablePrompt = disable; }
@@ -359,6 +354,9 @@ public:
   
   /** @return A pointer to the IGraphics context that owns this control */ 
   IGraphics* GetUI() { return mGraphics; }
+    
+  /** @return A const pointer to the IGraphics context that owns this control */
+  const IGraphics* GetUI() const { return mGraphics; }
 
   /* This can be used in IControl::Draw() to check if the mouse is over the control, without implementing mouse over methods 
    * @return \true if the mouse is over this control. */
@@ -428,8 +426,6 @@ protected:
   int mTextEntryLength = DEFAULT_TEXT_ENTRY_LEN;
   double mValue = 0.; // mValue is mapped to the normalized parameter value in controls where mParamIdx > -1
   double mDefaultValue = -1.; // it's important this is -1 to start with
-  double mClampLo = 0.;
-  double mClampHi = 1.;
   bool mDirty = true;
   bool mHide = false;
   bool mGrayed = false;

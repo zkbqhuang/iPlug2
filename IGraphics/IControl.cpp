@@ -112,7 +112,7 @@ void IControl::SetValueToDefault()
 
 void IControl::SetDirty(bool triggerAction)
 {
-  mValue = Clip(mValue, mClampLo, mClampHi);
+  mValue = Clip(mValue, 0.0, 1.0);
   mDirty = true;
   
   if (triggerAction)
@@ -187,6 +187,22 @@ void IControl::OnMouseDblClick(float x, float y, const IMouseMod& mod)
     SetValueToDefault();
   }
   #endif
+}
+
+void IControl::OnMouseOver(float x, float y, const IMouseMod& mod)
+{
+  bool prev = mMouseIsOver;
+  mMouseIsOver = true;
+  if (prev == false)
+    SetDirty(false);
+}
+
+void IControl::OnMouseOut()
+{
+  bool prev = mMouseIsOver;
+  mMouseIsOver = false;
+  if (prev == true)
+    SetDirty(false);
 }
 
 void IControl::OnPopupMenuSelection(IPopupMenu* pSelectedMenu)

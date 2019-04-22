@@ -104,7 +104,6 @@ NanoVGBitmap::NanoVGBitmap(IGraphicsNanoVG* pGraphics, NVGcontext* pContext, int
   mVG = pContext;
   mFBO = nvgCreateFramebuffer(pContext, width, height, 0);
   
-  nvgEndFrame(mVG);
   nvgBindFramebuffer(mFBO);
   
 #ifdef IGRAPHICS_METAL
@@ -264,13 +263,16 @@ IBitmap IGraphicsNanoVG::LoadBitmap(const char* name, int nStates, bool framesAr
     bool bitmapTypeSupported = BitmapExtSupported(ext);
     
     if(resourceFound == EResourceLocation::kNotFound || !bitmapTypeSupported)
+    {
+      assert("Bitmap not found");
       return IBitmap(); // return invalid IBitmap
+    }
 
     pAPIBitmap = LoadAPIBitmap(fullPathOrResourceID.Get(), sourceScale, resourceFound, ext);
     
     storage.Add(pAPIBitmap, name, sourceScale);
 
-    assert(pAPIBitmap);
+    assert(pAPIBitmap && "Bitmap not loaded");
   }
   
   return IBitmap(pAPIBitmap, nStates, framesAreHorizontal, name);
@@ -303,7 +305,20 @@ APIBitmap* IGraphicsNanoVG::LoadAPIBitmap(const char* fileNameOrResID, int scale
 
 APIBitmap* IGraphicsNanoVG::CreateAPIBitmap(int width, int height, int scale, double drawScale)
 {
-  return new NanoVGBitmap(this, mVG, width, height, scale, drawScale);
+  if (mInDraw)
+  {
+    nvgEndFrame(mVG);
+  }
+  
+  APIBitmap* pAPIBitmap =  new NanoVGBitmap(this, mVG, width, height, scale, drawScale);
+
+  if (mInDraw)
+  {
+    nvgBindFramebuffer(mMainFrameBuffer); // begin main frame buffer update
+    nvgBeginFrame(mVG, WindowWidth(), WindowHeight(), GetScreenScale());
+  }
+  
+  return pAPIBitmap;
 }
 
 void IGraphicsNanoVG::GetLayerBitmapData(const ILayerPtr& layer, RawBitmapData& data)
@@ -315,9 +330,9 @@ void IGraphicsNanoVG::GetLayerBitmapData(const ILayerPtr& layer, RawBitmapData& 
   
   if (data.GetSize() >= size)
   {
-    PushLayer(layer.get(), false);
+    PushLayer(layer.get());
     nvgReadPixels(mVG, pBitmap->GetBitmap(), 0, 0, pBitmap->GetWidth(), pBitmap->GetHeight(), data.Get());
-    PopLayer(false);    
+    PopLayer();    
   }
 }
 
@@ -332,35 +347,35 @@ void IGraphicsNanoVG::ApplyShadowMask(ILayerPtr& layer, RawBitmapData& mask, con
   {
     if (!shadow.mDrawForeground)
     {
-      PushLayer(layer.get(), false);
+      PushLayer(layer.get());
       nvgGlobalCompositeBlendFunc(mVG, NVG_ZERO, NVG_ZERO);
       PathRect(layer->Bounds());
       nvgFillColor(mVG, NanoVGColor(COLOR_TRANSPARENT));
       nvgFill(mVG);
-      PopLayer(false);
+      PopLayer();
     }
     
     IRECT bounds(layer->Bounds());
     
     NanoVGBitmap maskRawBitmap(mVG, width, height, mask.Get(), pBitmap->GetScale(), pBitmap->GetDrawScale());
-    APIBitmap* shadowBitmap = new NanoVGBitmap(this, mVG, width, height, pBitmap->GetScale(), pBitmap->GetDrawScale());
+    APIBitmap* shadowBitmap = CreateAPIBitmap(width, height, pBitmap->GetScale(), pBitmap->GetDrawScale());
     IBitmap tempLayerBitmap(shadowBitmap, 1, false);
     IBitmap maskBitmap(&maskRawBitmap, 1, false);
     ILayer shadowLayer(shadowBitmap, layer->Bounds());
     
     PathTransformSave();
-    PushLayer(layer.get(), false);
-    PushLayer(&shadowLayer, false);
+    PushLayer(layer.get());
+    PushLayer(&shadowLayer);
     DrawBitmap(maskBitmap, bounds, 0, 0, nullptr);
     IBlend blend1(kBlendSourceIn, 1.0);
     PathRect(layer->Bounds());
     PathTransformTranslate(-shadow.mXOffset, -shadow.mYOffset);
     PathFill(shadow.mPattern, IFillOptions(), &blend1);
-    PopLayer(false);
+    PopLayer();
     IBlend blend2(kBlendDestOver, shadow.mOpacity);
     bounds.Translate(shadow.mXOffset, shadow.mYOffset);
     DrawBitmap(tempLayerBitmap, bounds, 0, 0, &blend2);
-    PopLayer(false);
+    PopLayer();
     PathTransformRestore();
   }
 }
@@ -427,7 +442,6 @@ void IGraphicsNanoVG::BeginFrame()
 #endif
   
   nvgBindFramebuffer(mMainFrameBuffer); // begin main frame buffer update
-
   nvgBeginFrame(mVG, WindowWidth(), WindowHeight(), GetScreenScale());
 }
 
@@ -435,9 +449,8 @@ void IGraphicsNanoVG::EndFrame()
 {
   nvgEndFrame(mVG); // end main frame buffer update
   nvgBindFramebuffer(nullptr);
-
   nvgBeginFrame(mVG, WindowWidth(), WindowHeight(), GetScreenScale());
-
+  
   NVGpaint img = nvgImagePattern(mVG, 0, 0, WindowWidth(), WindowHeight(), 0, mMainFrameBuffer->image, 1.0f);
 
   nvgSave(mVG);
@@ -529,78 +542,59 @@ IColor IGraphicsNanoVG::GetPoint(int x, int y)
   return COLOR_BLACK; //TODO:
 }
 
-bool IGraphicsNanoVG::DoDrawMeasureText(const IText& text, const char* str, IRECT& bounds, const IBlend* pBlend, bool measure)
+void IGraphicsNanoVG::PrepareAndMeasureText(const IText& text, const char* str, IRECT& r, double& x, double & y) const
 {
-  assert(nvgFindFont(mVG, text.mFont) != -1); // did you forget to LoadFont for this font?
+  float fbounds[4];
+  
+  assert(nvgFindFont(mVG, text.mFont) != -1 && "No font found - did you forget to load it?");
   
   nvgFontBlur(mVG, 0);
   nvgFontSize(mVG, text.mSize);
   nvgFontFace(mVG, text.mFont);
   
-  if(GetTextEntryControl() && GetTextEntryControl()->GetRECT() == bounds)
-    nvgFillColor(mVG, NanoVGColor(text.mTextEntryFGColor, pBlend));
-  else
-    nvgFillColor(mVG, NanoVGColor(text.mFGColor, pBlend));
-  
-  float xpos = 0.;
-  float ypos = 0.;
-  
   int align = 0;
+  
   switch (text.mAlign)
   {
-    case IText::kAlignNear: align = NVG_ALIGN_LEFT; xpos = bounds.L; break;
-    case IText::kAlignCenter: align = NVG_ALIGN_CENTER; xpos = bounds.MW(); break;
-    case IText::kAlignFar: align = NVG_ALIGN_RIGHT; xpos = bounds.R; break;
-    default:
-      break;
+    case IText::kAlignNear:     align = NVG_ALIGN_LEFT;     x = r.L;        break;
+    case IText::kAlignCenter:   align = NVG_ALIGN_CENTER;   x = r.MW();     break;
+    case IText::kAlignFar:      align = NVG_ALIGN_RIGHT;    x = r.R;        break;
   }
   
   switch (text.mVAlign)
   {
-    case IText::kVAlignBottom: align |= NVG_ALIGN_BOTTOM; ypos = bounds.B; break;
-    case IText::kVAlignMiddle: align |= NVG_ALIGN_MIDDLE; ypos = bounds.MH(); break;
-    case IText::kVAlignTop: align |= NVG_ALIGN_TOP; ypos = bounds.T; break;
-    default: break;
-      break;
+    case IText::kVAlignTop:     align |= NVG_ALIGN_TOP;     y = r.T;        break;
+    case IText::kVAlignMiddle:  align |= NVG_ALIGN_MIDDLE;  y = r.MH();     break;
+    case IText::kVAlignBottom:  align |= NVG_ALIGN_BOTTOM;  y = r.B;        break;
   }
   
   nvgTextAlign(mVG, align);
+  nvgTextBounds(mVG, x, y, str, NULL, fbounds);
   
-  auto calcTextBounds = [&](IRECT& r)
-  {
-    float fbounds[4];
-    nvgTextBounds(mVG, xpos, ypos, str, NULL, fbounds);
-    r.L = fbounds[0]; r.T = fbounds[1]; r.R = fbounds[2]; r.B = fbounds[3];
-  };
-  
-  if (measure)
-  {
-    calcTextBounds(bounds);
-    return true;
-  }
-  else
-  {
-    NanoVGSetBlendMode(mVG, pBlend);
-      
-    if(text.mOrientation != 0)
-    {
-      IRECT tmp;
-      calcTextBounds(tmp);
+  r = IRECT(fbounds[0], fbounds[1], fbounds[2], fbounds[3]);
+}
 
-      nvgSave(mVG);
-      nvgTranslate(mVG, tmp.L, tmp.B);
-      nvgRotate(mVG, nvgDegToRad(text.mOrientation));
-      nvgTranslate(mVG, -tmp.L, -tmp.B);
-      nvgText(mVG, xpos, ypos, str, NULL);
-      nvgRestore(mVG);
-    }
-    else
-      nvgText(mVG, xpos, ypos, str, NULL);
-      
-    nvgGlobalCompositeOperation(mVG, NVG_SOURCE_OVER);
-  }
-    
-  return true;
+void IGraphicsNanoVG::DoMeasureText(const IText& text, const char* str, IRECT& bounds) const
+{
+  IRECT r = bounds;
+  double x, y;
+  PrepareAndMeasureText(text, str, bounds, x, y);
+  DoMeasureTextRotation(text, r, bounds);
+}
+
+void IGraphicsNanoVG::DoDrawText(const IText& text, const char* str, const IRECT& bounds, const IBlend* pBlend)
+{
+  IRECT measured = bounds;
+  double x, y;
+  
+  PrepareAndMeasureText(text, str, measured, x, y);
+  PathTransformSave();
+  DoTextRotation(text, bounds, measured);
+  nvgFillColor(mVG, NanoVGColor(text.mFGColor, pBlend));
+  NanoVGSetBlendMode(mVG, pBlend);
+  nvgText(mVG, x, y, str, NULL);
+  nvgGlobalCompositeOperation(mVG, NVG_SOURCE_OVER);
+  PathTransformRestore();
 }
 
 void IGraphicsNanoVG::PathStroke(const IPattern& pattern, float thickness, const IStrokeOptions& options, const IBlend* pBlend)
