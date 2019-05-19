@@ -42,6 +42,9 @@
 		4FA39B02228064A900C6FCAE /* ReaperExtBase.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = ReaperExtBase.h; sourceTree = "<group>"; };
 		4FA39B03228064A900C6FCAE /* ReaperExtBase.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = ReaperExtBase.cpp; sourceTree = "<group>"; };
 		4FB401D122806B3B00F35D81 /* IGraphicsAGG_src.mm */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.objcpp; path = IGraphicsAGG_src.mm; sourceTree = "<group>"; };
+		4FB54CD12282EB8A00F1F82E /* IGraphicsImGui_src.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; path = IGraphicsImGui_src.mm; sourceTree = "<group>"; };
+		4FB54CD22282EB8A00F1F82E /* IGraphicsImGui.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = IGraphicsImGui.h; sourceTree = "<group>"; };
+		4FB54CD32282EB8A00F1F82E /* IGraphicsImGui.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = IGraphicsImGui.cpp; sourceTree = "<group>"; };
 		4FBA837B20ECAE7B00423B90 /* IPlugReaperExtension.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.objcpp; name = IPlugReaperExtension.cpp; path = ../IPlugReaperExtension.cpp; sourceTree = "<group>"; };
 		4FBA83A720ECAED000423B90 /* swell-modstub.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; name = "swell-modstub.mm"; path = "../../../WDL/swell/swell-modstub.mm"; sourceTree = "<group>"; };
 		4FBA83AC20ECAF0B00423B90 /* reaper_IPlugReaperExtension.dylib */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.dylib"; includeInIndex = 0; path = reaper_IPlugReaperExtension.dylib; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -143,9 +146,6 @@
 		4FDA1E0E2012CDB30027C868 /* main.rc_mac_menu */ = {isa = PBXFileReference; lastKnownFileType = text; name = main.rc_mac_menu; path = ../resources/main.rc_mac_menu; sourceTree = "<group>"; };
 		4FDA1E0F2012CDB30027C868 /* main.rc_mac_dlg */ = {isa = PBXFileReference; lastKnownFileType = text; name = main.rc_mac_dlg; path = ../resources/main.rc_mac_dlg; sourceTree = "<group>"; };
 		4FDA1E102012CDB30027C868 /* resource.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = resource.h; path = ../resources/resource.h; sourceTree = "<group>"; };
-		4FDDFDE8229171CF007519F4 /* IGraphicsImGui_src.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; path = IGraphicsImGui_src.mm; sourceTree = "<group>"; };
-		4FDDFDE9229171CF007519F4 /* IGraphicsImGui.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = IGraphicsImGui.h; sourceTree = "<group>"; };
-		4FDDFDEA229171CF007519F4 /* IGraphicsImGui.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = IGraphicsImGui.cpp; sourceTree = "<group>"; };
 		4FF016F4134E14E2001447BA /* mutex.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = mutex.h; path = ../../../WDL/mutex.h; sourceTree = SOURCE_ROOT; };
 		4FF016F5134E14E2001447BA /* ptrlist.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = ptrlist.h; path = ../../../WDL/ptrlist.h; sourceTree = SOURCE_ROOT; };
 		4FF016F6134E14E2001447BA /* wdlstring.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = wdlstring.h; path = ../../../WDL/wdlstring.h; sourceTree = SOURCE_ROOT; };
@@ -231,6 +231,16 @@
 			path = ../../../IPlug/ReaperExtension;
 			sourceTree = "<group>";
 		};
+		4FB54CD02282EB8A00F1F82E /* Extras */ = {
+			isa = PBXGroup;
+			children = (
+				4FB54CD12282EB8A00F1F82E /* IGraphicsImGui_src.mm */,
+				4FB54CD22282EB8A00F1F82E /* IGraphicsImGui.h */,
+				4FB54CD32282EB8A00F1F82E /* IGraphicsImGui.cpp */,
+			);
+			path = Extras;
+			sourceTree = "<group>";
+		};
 		4FBA83BF20ECBBBE00423B90 /* Reaper */ = {
 			isa = PBXGroup;
 			children = (
@@ -247,7 +257,7 @@
 		4FBB8C1921EA55BD00C1EF1B /* IGraphics */ = {
 			isa = PBXGroup;
 			children = (
-				4FDDFDE7229171CF007519F4 /* Extras */,
+				4FB54CD02282EB8A00F1F82E /* Extras */,
 				4FBB8C1A21EA55BD00C1EF1B /* Drawing */,
 				4FBB8C2B21EA55BD00C1EF1B /* Platforms */,
 				4FBB8C4021EA55BD00C1EF1B /* Controls */,
@@ -379,16 +389,6 @@
 				4F56E32B227FADCD00F3E839 /* IPlugEditorDelegate.h */,
 			);
 			name = IPlug;
-			sourceTree = "<group>";
-		};
-		4FDDFDE7229171CF007519F4 /* Extras */ = {
-			isa = PBXGroup;
-			children = (
-				4FDDFDE8229171CF007519F4 /* IGraphicsImGui_src.mm */,
-				4FDDFDE9229171CF007519F4 /* IGraphicsImGui.h */,
-				4FDDFDEA229171CF007519F4 /* IGraphicsImGui.cpp */,
-			);
-			path = Extras;
 			sourceTree = "<group>";
 		};
 		4FF01613134E0BCD001447BA /* WDL */ = {

@@ -55,8 +55,13 @@ extern "C"
       IMPAPI(AddExtensionsMainMenu);
       IMPAPI(AttachWindowTopmostButton);
       IMPAPI(ShowConsoleMsg);
-      IMPAPI(DockWindowAdd);
+      IMPAPI(Dock_UpdateDockID);
+      IMPAPI(DockIsChildOfDock);
       IMPAPI(DockWindowActivate);
+      IMPAPI(DockWindowAdd);
+      IMPAPI(DockWindowAddEx);
+      IMPAPI(DockWindowRefresh);
+      IMPAPI(DockWindowRemove);
       
       if (gErrorCount > 0)
         return 0;
